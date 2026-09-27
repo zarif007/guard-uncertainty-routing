@@ -17,6 +17,7 @@ from evaluation.hardware import (
 )
 from evaluation.profiling import InferenceProfiler, ModelProfiler, latency_summary
 from models.llm_loader import LLMGuard, resolve_model_path
+from models.registry import HF_SEQCLS
 from models.registry import MODEL_CONFIGS, get_config
 from scripts.data_loader import describe, get_dataset
 
@@ -158,22 +159,34 @@ def run_model(
 
     print(f"[{tag}] Loading model")
     try:
-        model_path = resolve_model_path(config)
+        # Encoder guards go through transformers, not llama.cpp.  They have
+        # no GGUF file, no chat template and no cacheable prefix, but
+        # EncoderGuard returns the same dict shape as LLMGuard so nothing
+        # downstream needs to know which one it got.
+        if config["backend"] == HF_SEQCLS:
+            from models.hf_loader import EncoderGuard
 
-        mem_profiler = ModelProfiler(model_path=model_path, backend=backend)
-        mem_profiler.before_load()
-        model = LLMGuard(
-            quant_level=config["key"] if not local_path else model_name,
-            n_threads=n_threads,
-            n_gpu_layers=n_gpu_layers,
-            n_batch=n_batch,
-            flash_attn=flash_attn,
-            controversial_policy=controversial_policy,
-            n_ctx=n_ctx,
-            use_prefix_cache=not no_prefix_cache,
-            config_override=config if local_path else None,
-        )
-        mem_profiler.after_load()
+            mem_profiler = ModelProfiler(model_path=None, backend=backend)
+            mem_profiler.before_load()
+            model = EncoderGuard(config["key"])
+            mem_profiler.after_load()
+        else:
+            model_path = resolve_model_path(config)
+
+            mem_profiler = ModelProfiler(model_path=model_path, backend=backend)
+            mem_profiler.before_load()
+            model = LLMGuard(
+                quant_level=config["key"] if not local_path else model_name,
+                n_threads=n_threads,
+                n_gpu_layers=n_gpu_layers,
+                n_batch=n_batch,
+                flash_attn=flash_attn,
+                controversial_policy=controversial_policy,
+                n_ctx=n_ctx,
+                use_prefix_cache=not no_prefix_cache,
+                config_override=config if local_path else None,
+            )
+            mem_profiler.after_load()
     except Exception as exc:
         print(f"Failed to load {tag}: {exc}")
         sys.exit(1)
@@ -181,7 +194,8 @@ def run_model(
     mem = mem_profiler.stats()
     print(f"\n[{tag}] Memory profile:\n{mem_profiler.summary()}")
 
-    if mem["offload_ok"] is False and not allow_partial_offload:
+    if (config["backend"] != HF_SEQCLS
+            and mem["offload_ok"] is False and not allow_partial_offload):
         print(
             f"\nERROR: partial GPU offload detected for {tag}. Latency and memory from a "
             f"CPU/GPU hybrid are not comparable to a fully offloaded run.\n"
@@ -191,7 +205,7 @@ def run_model(
         sys.exit(3)
 
     print(f"[{tag}] Label tokens:\n{model.token_report()}")
-    if model.template.is_ternary:
+    if getattr(model, "template", None) is not None and model.template.is_ternary:
         print(f"[{tag}] Controversial policy: {controversial_policy}")
     print(f"[{tag}] Cacheable prefix: {model.prefix_token_count()} tokens")
 

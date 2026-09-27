@@ -11,8 +11,9 @@ What is left is the five prompt-level English safety sets the paper actually
 runs.  They all ask one question -- given a prompt, is it harmful? -- so
 pooling them is legitimate and the pooled AUROC means something.  Mixing in a
 multilingual or response-level set would not be: the gates would then answer
-"does quantization shift the boundary across a grab-bag of tasks", which is
-not a question anyone asked.
+"which uncertainty signal works across a grab-bag of different tasks", which
+is not a question anyone asked.  Routing human review is a per-deployment
+decision, and a deployment sees one kind of traffic.
 """
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional

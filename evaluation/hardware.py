@@ -3,15 +3,15 @@ hardware.py — backend detection, device metadata, and memory sampling.
 
 Why this module exists
 ----------------------
-Latency, throughput and memory are properties of the
-(model, quantization, inference engine, hardware) configuration — not of
-quantization alone.  A cross-precision comparison of those metrics is valid
-only if every other element of that tuple is held fixed.
+Scores are functions of the logits, so they do not depend on the machine --
+but they DO depend on the engine build, because llama.cpp's CUDA kernels are
+not bitwise identical to its CPU kernels.  This study compares uncertainty
+signals across guards, so a signal that looked better only because its guard
+ran on a different build would be an artefact.
 
-So every run records a full environment fingerprint, and `analyze.py` refuses
-to build deployment tables from prediction files whose fingerprints disagree.
-That turns "we ran everything on the same pod" from an assumption into a
-checked precondition.
+So every run records a full environment fingerprint and `analyze.py` reports
+whether the prediction files share one.  That turns "we ran everything on the
+same pod" from an assumption into a checked precondition.
 
 Memory measurement is backend-dependent:
 
@@ -101,7 +101,7 @@ def torch_device(preferred: str = "auto") -> str:
 
 # float32 is not an option for the 8B guard models: the weights alone need
 # ~32 GB, which does not fit the experiment hardware.  It also buys nothing
-# for the fake-quantization probe, whose perturbation is a 3-4 bit RTN
+# for the transformers-backed guards, whose numerical precision is
 # round-trip -- orders of magnitude coarser than bfloat16 mantissa rounding
 # in the baseline.  bfloat16 is preferred over float16 because it keeps
 # float32's exponent range, so logits cannot saturate.

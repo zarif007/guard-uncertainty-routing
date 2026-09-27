@@ -12,7 +12,7 @@ prose documentation:
                   Qwen/Qwen3Guard-Gen-8B
 
 This matters for Gate A, which asks whether prompt formatting explains
-reported quantization-safety effects.  A hand-written approximation of the
+a guard's measured behaviour.  A hand-written approximation of the
 template would make that gate untestable.
 
 Documented deviations

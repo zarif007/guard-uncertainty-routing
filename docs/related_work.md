@@ -52,13 +52,40 @@ entry. Do not cite anything marked `SNIPPET` without reading it first.
   Polarization must be tested on our own models, not asserted from the
   Artificial Analysis figure.
 
-**Where we differ.** Safety-Flag evaluates **native confidence only**. It
-establishes the baseline and does not ask whether anything beats it. Our five
-signals -- native probability, raw logit margin, perturbation instability,
-cross-model agreement, cross-precision agreement -- are a search over
-alternatives that Safety-Flag's design does not cover. Three of those signals
-never read the confidence score at all, which is the whole point: they can
-work on a guard whose scores carry no ranking information.
+**Where we differ.** In one sentence, to be defended in one breath:
+
+> Safety-Flag showed a guard's confidence is somewhat useful for routing human
+> review. We ask whether signals that ignore the confidence score entirely do
+> better -- and what they cost.
+
+Expanded, in the order a reviewer will press on them:
+
+| # | Difference | Why it matters |
+|---|---|---|
+| 1 | **They test one signal. We test five.** | They use the number the guard already produces. We race five ways of spotting a shaky decision against each other |
+| 2 | **Three of our signals never read the confidence score.** | Rewording the message, cross-model agreement and cross-precision agreement are behavioural. They remain computable when the score carries no ranking information -- the regime where Safety-Flag's approach runs out of road |
+| 3 | **Their result is our starting line.** | We do not contest their finding. We take it as the floor and ask what is above it. The baseline in `gate_s3` is *their* method, not random deferral |
+| 4 | **We question the number itself.** | `p_unsafe` is `sigmoid(margin)`, and past a margin of ~37 the float64 sigmoid ties every score at 1.0. They use the probability; we compare it against the raw margin underneath. Free to test |
+| 5 | **We price the signals.** | Their signal is free, so cost never arises. Rewording a prompt k ways costs k x inference, and `gate_s4` exists solely to catch a signal that wins for a boring reason |
+| 6 | **We add a kind of guard they do not include.** | They split general-purpose LLMs against dedicated guards -- both of which emit a *token*. An encoder classifier with a trained probability head is in neither category |
+| 7 | **We pre-register failable gates.** | Benchmarks describe what they find. `docs/preregistration.md` fixes which outcome licenses which claim, and `scripts/verify_selective.py` proves the criteria can fail |
+
+**Everything rests on 1 and 2.** The rest is supporting detail. If a reviewer
+does not accept "they measured one signal, we search for a better one", nothing
+further down the list rescues the contribution.
+
+**What is NOT a difference** -- state this before a reviewer does:
+
+- **Our datasets overlap theirs.** XSTest, WildGuard and ToxiChat are in both.
+  That is an advantage (a published comparison) but it is not novelty.
+- **They have more models.** Thirteen against our four. We are not out-scaling
+  them and should not imply it.
+- **"Guards are overconfident" is their finding**, as is "temperature scaling
+  fixes calibration without changing the ranking". Both are cited, not claimed.
+- **Difference 6 is the weakest.** Their dedicated-vs-general-purpose split is
+  already a kind-of-guard comparison. Ours is genuinely a different cut --
+  encoder heads are in neither of their categories -- but it has to be drawn
+  carefully rather than asserted.
 
 **What it gives us.** Item-level decisions and confidence scores are released.
 XSTest, WildGuard and ToxiChat overlap our dataset set, so on those items we

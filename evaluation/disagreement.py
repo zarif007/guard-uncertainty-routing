@@ -129,18 +129,18 @@ def family_references(models: List[str], reference: Optional[str] = None) -> Dic
     """
     One reference per architecture: each family's own highest precision.
 
-    A flip is "this prompt changed verdict when I quantized the model".  That
-    only means anything against the same model at full precision.  Scoring
-    qwen3guard:q2_k against llama-guard:fp16 measures how far apart two
-    different guards are, and because the two families' boundaries sit at
-    different places, the artefact has a direction: as Qwen's ladder drifts
-    toward Llama's boundary its apparent flip rate *falls* with precision,
-    reversing the very trend the flip analysis exists to show.
+    A flip is "this prompt changed verdict between these two guards".
 
-    `models` is expected in the order `registry.sort_keys` produces, so the
-    first entry of each family is its highest precision.  An explicit
-    `reference` overrides the choice for its own family only.
-    """
+    Guards with different training have boundaries in different places, so a
+    flip between two families measures the distance between two models as
+    much as the difficulty of the prompt.  That is why cross-PRECISION
+    agreement is the preferred instability signal (evaluation/signals.py):
+    quantizing perturbs one model without moving its boundary anywhere a
+    different architecture would have put it.
+
+    Useful here as a diagnostic on signal 4 -- it shows WHICH guards drive
+    the disagreement, which a single agreement number cannot.
+"""
     refs: Dict[str, str] = {}
     for model in models:
         refs.setdefault(_family_of(model), model)

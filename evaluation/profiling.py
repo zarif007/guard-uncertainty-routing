@@ -82,7 +82,14 @@ class ModelProfiler:
         self._host_after = self._sampler.host_rss_mb()
         self._device_after = self._sampler.device_mb()
 
-        self.weights_mb = os.path.getsize(self.model_path) / (1024 * 1024)
+        # An encoder guard has no single weight file -- transformers keeps it
+        # as shards in the hub cache -- so there is nothing to stat.  Host RSS
+        # delta still measures the load, which is what the column is for.
+        if self.model_path and os.path.exists(self.model_path):
+            self.weights_mb = os.path.getsize(self.model_path) / (1024 * 1024)
+        else:
+            self.weights_mb = 0.0
+            self.notes.append("no single weight file; weights_mb unavailable")
         self.host_mb = max(0.0, self._host_after - self._host_before)
 
         if self.backend == CUDA:
