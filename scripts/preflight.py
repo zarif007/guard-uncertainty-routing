@@ -188,8 +188,10 @@ def check_models(groups):
                        f"{filename} not on hub and not in {BUILT_DIR}/")
 
     if missing:
-        print(f"\n  -> build them: python scripts/build_missing_quants.py "
-              f"--only {' '.join(k.split(':')[-1] for k in missing)}")
+        print("\n  -> not on the hub under these filenames. Check the repo listing "
+              "above and correct models/registry.py:")
+        for key in missing:
+            print(f"     {key}")
 
     required = total_disk_gb(keys)
     probe_dir = DEFAULT_WEIGHTS_DIR if os.path.isdir(DEFAULT_WEIGHTS_DIR) else "."
@@ -230,8 +232,8 @@ def check_datasets(tiers):
 
 def main():
     parser = argparse.ArgumentParser(description="Pre-run environment and asset check")
-    parser.add_argument("--models", nargs="*", default=["all-families-ladder"],
-                        help="default is this paper's scope: both bit ladders, 14 models")
+    parser.add_argument("--models", nargs="*", default=["guard-panel"],
+                        help="default is this study's scope: the four-guard panel")
     parser.add_argument("--datasets", nargs="*", default=None,
                         help="tiers to probe, e.g. A B. Slow; omitted by default")
     parser.add_argument("--full", action="store_true", help="probe every dataset tier")

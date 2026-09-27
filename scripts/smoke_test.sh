@@ -9,7 +9,7 @@
 #   MODELS="q3 q4 q6" N=60 DATASET=harmbench bash scripts/smoke_test.sh
 set -e
 
-MODELS=${MODELS:-"q3 q4"}
+MODELS=${MODELS:-"reference"}
 DATASET=${DATASET:-"xstest"}
 N=${N:-40}
 OUT=${OUT:-"results/smoke"}
@@ -60,7 +60,7 @@ sys.path.insert(0, os.getcwd())
 from evaluation.score_range import print_report
 
 out = sys.argv[1]
-summary = pd.read_csv(f"{out}/tables/summary_metrics.csv")
+summary = pd.read_csv(f"{out}/tables/accuracy_summary.csv")
 envs = pd.read_csv(f"{out}/tables/environments.csv")
 
 pd.set_option("display.width", 200)
@@ -81,22 +81,16 @@ preds = pd.concat([pd.read_csv(f) for f in sorted(glob.glob(f"{out}/*.csv"))],
                   ignore_index=True)
 range_status = print_report(preds[preds["prediction"] != "error"])
 
-print("\n=== Safety / usefulness ===")
-cols = ["model", "safety_rate", "precision", "f1_score", "false_positive_rate",
-        "false_negative_rate", "usefulness_rate", "auroc", "ece"]
+print("\n=== Classification quality ===")
+cols = ["model", "accuracy", "error_rate", "flag_rate", "base_rate",
+        "auroc", "auroc_on_margin"]
 print(summary[[c for c in cols if c in summary.columns]].round(4).to_string(index=False))
 
-print("\n=== Efficiency (conditional on the environment above) ===")
-cols = ["model", "latency_median_sec", "latency_p95_sec", "latency_iqr_sec",
-        "single_stream_prompts_per_sec", "prefill_tokens_per_sec",
-        "model_weight_gb", "vram_gb", "peak_memory_gb", "ges"]
-print(summary[[c for c in cols if c in summary.columns]].round(4).to_string(index=False))
-
-deploy = pd.read_csv(f"{out}/tables/safety_per_gb.csv")
-print("\n=== Safety per GB ===")
-cols = ["model", "tpr_at_target_fpr", "memory_gb", "weights_gb",
-        "latency_median_sec", "safety_per_gb", "efficiency_comparable"]
-print(deploy[[c for c in cols if c in deploy.columns]].round(4).to_string(index=False))
+signals = pd.read_csv(f"{out}/tables/signal_performance.csv")
+print("\n=== Which signal routes review best? (lower AURC is better) ===")
+cols = ["model", "signal", "aurc", "deferral_efficiency", "tie_fraction",
+        "errors_found_at_5pct", "n_errors"]
+print(signals[[c for c in cols if c in signals.columns]].round(4).to_string(index=False))
 
 if range_status == "POLARIZED":
     print("\nSTOP: the threshold-free analysis cannot work on this prompt set with "

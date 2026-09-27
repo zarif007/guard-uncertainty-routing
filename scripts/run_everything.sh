@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-MODELS=${MODELS:-"bit-ladder"}
-DATASETS=${DATASETS:-"harmbench xstest"}
+MODELS=${MODELS:-"guard-panel"}
+DATASETS=${DATASETS:-"xstest harmbench"}
 SUBSET=${SUBSET:-""}
 THREADS=${THREADS:-""}
 EVICT=${EVICT:-""}
@@ -61,8 +61,14 @@ python scripts/download_datasets.py --datasets $DATASETS
 
 echo ""
 echo "[3/5] Gate B verification"
-FIRST_MODEL=$(echo $MODELS | awk '{print $1}')
-if [ "$FIRST_MODEL" = "bit-ladder" ]; then FIRST_MODEL="q4"; fi
+# Resolve the group spec to a concrete model.  Passing a group name
+# ("guard-panel") straight to verify_scorer.py raised ValueError in
+# get_config() and aborted the whole run before a single prompt was scored.
+FIRST_MODEL=$(python -c "
+from models.registry import expand_many
+print(expand_many('''$MODELS'''.split())[0])
+")
+echo "  Gate B model: $FIRST_MODEL"
 python scripts/verify_scorer.py --model "$FIRST_MODEL" --dataset xstest --n 40 \
     --n-gpu-layers "$GPU_LAYERS" ${THREADS:+--n-threads $THREADS} || {
     echo "Gate B FAILED - stopping. Fix the scorer before running the full sweep."
@@ -71,7 +77,7 @@ python scripts/verify_scorer.py --model "$FIRST_MODEL" --dataset xstest --n 40 \
 
 echo ""
 echo "[4/5] Inference"
-ARGS="--phase 0 --models $MODELS --datasets $DATASETS --n-gpu-layers $GPU_LAYERS --skip-analysis"
+ARGS="--phase 1 --models $MODELS --datasets $DATASETS --n-gpu-layers $GPU_LAYERS --skip-analysis"
 if [ -n "$SUBSET" ]; then ARGS="$ARGS --subset $SUBSET"; fi
 if [ -n "$THREADS" ]; then ARGS="$ARGS --n-threads $THREADS"; fi
 if [ -n "$EVICT" ]; then ARGS="$ARGS --evict"; fi

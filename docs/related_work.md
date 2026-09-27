@@ -4,14 +4,18 @@ Literature scan of 2026-09-26. Its job is to answer one question honestly:
 **is the contribution still there?** The short answer is yes, but not where
 the research plan originally put it.
 
-> **The headline finding of this scan.** "Quantization can improve safety,
-> sometimes non-monotonically" is **already published**, more than once. The
-> observation is not ours to claim. What is unoccupied is the *measurement* —
-> nobody quantizes the guard model itself and evaluates it threshold-free, and
-> nobody separates the two mechanisms. Reposition the thesis accordingly:
-> not *"we found an effect"* but *"the field has been measuring this with an
-> instrument that cannot distinguish two different things, here is one that
-> can, and here is what it shows."*
+> **The headline finding of this scan.** The original framing -- "quantization
+> can improve safety, sometimes non-monotonically" -- is **already published**,
+> more than once, for generator models. The pivot away from quantization
+> followed. The current question is narrower and better defended: given that
+> a guard's own confidence already works *somewhat* for routing human review
+> (Safety-Flag, below), can anything work *better*?
+
+> **Amendment, 2026-09-28.** Section 0 was added after Safety-Flag was found.
+> It is the nearest neighbour to this study and it moves our baseline. Read it
+> before anything else on this page. Sections 1 and 5 are retained because the
+> quantization ladder survives as the input to one uncertainty signal
+> (cross-precision agreement), not because the old framing survives.
 
 ## How to read the status column
 
@@ -23,6 +27,56 @@ entry. Do not cite anything marked `SNIPPET` without reading it first.
 | `READ` | Full text or HTML fetched and checked against our claims |
 | `ABSTRACT` | Abstract verified directly |
 | `SNIPPET` | Search-result summary only — **unverified, must be read** |
+
+---
+
+## 0. Selective prediction and abstention for guards — THE NEIGHBOUR
+
+| Work | Idea | Status |
+|---|---|---|
+| [Safety-Flag: A Unified Benchmark for the Reliability and Calibration of LLM Content Moderators](https://arxiv.org/abs/2609.19072) | Seven safety benchmarks (BeaverTails, XSTest, Ethics, WildGuard, Aegis, ToxiChat, ToxiGen) in one balanced flag / do-not-flag protocol. Measures three dimensions: error direction, probability calibration, and **confidence-based error ranking for human review**. Six general-purpose LLMs, four dedicated guards, three reference models. Releases item-level decisions and confidence scores. | `ABSTRACT` |
+
+**What it establishes, and what it therefore takes off the table.**
+
+- *"Confidence-based abstention lowers selective risk for every model"* — so
+  **"guards cannot rank their own uncertainty" is not an open question.** It
+  has been measured and the answer is that native confidence works, unevenly.
+  Any framing built on guards being unable to self-assess is dead.
+- *"Fitting one temperature per model reduces calibration error by 2.8-6.0x
+  without changing predicted labels or confidence ordering"* — this is the
+  inertness result from the previous study, observed empirically. We can still
+  state it as a general fact with a proof, but it is no longer a headline.
+- *"Dedicated guards produce fewer false alarms and are better calibrated, but
+  several have higher miss rates outside their documented coverage"* — this
+  **contradicts** the assumption that guard scores are uniformly degenerate.
+  Polarization must be tested on our own models, not asserted from the
+  Artificial Analysis figure.
+
+**Where we differ.** Safety-Flag evaluates **native confidence only**. It
+establishes the baseline and does not ask whether anything beats it. Our five
+signals -- native probability, raw logit margin, perturbation instability,
+cross-model agreement, cross-precision agreement -- are a search over
+alternatives that Safety-Flag's design does not cover. Three of those signals
+never read the confidence score at all, which is the whole point: they can
+work on a guard whose scores carry no ranking information.
+
+**What it gives us.** Item-level decisions and confidence scores are released.
+XSTest, WildGuard and ToxiChat overlap our dataset set, so on those items we
+can compare against a *published* native-confidence baseline rather than a
+reimplementation of one. "We beat the published number on the same items" is a
+much stronger claim than "we beat our version of it."
+
+**Open item:** confirm the item-level overlap and reuse their scores directly.
+
+### Adjacent, and each one narrows a different door
+
+| Work | Idea | Status |
+|---|---|---|
+| [Uncertainty-Aware Abstention in LLMs with Provable Alignment Guarantees](https://arxiv.org/pdf/2607.04430) | Abstention with guarantees — for *generation*, not for a moderation classifier | `SNIPPET` |
+| [Entropy Alone is Insufficient for Safe Selective Prediction in LLMs](https://arxiv.org/pdf/2603.21172) | Entropy is a weak uncertainty signal. Supports searching beyond the obvious | `SNIPPET` |
+| [Investigating the Impact of Model Instability on Explanations and Uncertainty](https://arxiv.org/pdf/2402.13006) | **The threat to signal 3.** Examples that flip under perturbation already have higher baseline uncertainty. If instability merely restates a small margin it costs ~10x inference for nothing. Gate S4 is built to detect exactly this | `SNIPPET` |
+| Semantic entropy / semantic-invariant perturbation sampling (Kuhn & Gal, and successors) | The *technique* behind signal 3 is established for hallucination detection. Its application to guard error-routing is what is new; the method is not | `SNIPPET` |
+| [Artificial Analysis guardrail benchmark](https://artificialanalysis.ai/articles/guardrail-safety-benchmark) | Reports verdict probabilities "almost perfectly polarized, with 99.8% of scores pinned at zero or one" on some guards. **Motivation, not evidence about our models** | `SNIPPET` |
 
 ---
 
@@ -163,38 +217,31 @@ between 3 and 16 bits.
 
 ## 6. What is unoccupied
 
-Ranked by how much weight each can bear.
+Ranked by how much weight each can bear. Rewritten after Safety-Flag.
 
-1. **A fine-grained bit ladder on the guard model itself, evaluated
-   threshold-free.** Published work stops at one or two quantization points
-   and reports fixed-threshold F1 or ASR. Nothing found runs FP16 → Q3 on a
-   guard and reports AUROC, AUPRC, TPR at matched FPR and paired DeLong tests.
+1. **A comparison of uncertainty signals for routing guard review.**
+   Safety-Flag established that native confidence works. Nobody has asked
+   whether the raw margin, behavioural instability, or cross-model /
+   cross-precision agreement beats it at a matched review budget.
    **This is the load-bearing contribution.**
 
-2. **The temperature / boundary-location decomposition, with the inertness
-   argument.** Nothing found separates the two, and nothing found states that
-   temperature cannot move a fixed-threshold decision. Small, provable,
-   and it eliminates a hypothesis the literature treats as live.
+2. **Signals that do not read the confidence score.** Three of our five are
+   behavioural. They remain computable on a guard whose scores are pinned,
+   which is precisely the regime where the established approach degrades.
 
-3. **Equivalence testing rather than non-significance.** Everything in
-   section 1 argues "quantization does / does not hurt safety" from
-   significance tests. Confirming that a gap is *small* needs TOST, and a
-   study that confirms its own hypothesis by having a weak test has shown
-   nothing. Our Gate C cannot be passed that way, and `verify_gates.py`
-   demonstrates it against data of known construction.
+3. **The squashing tax, measured.** `p_unsafe` is `sigmoid(margin)`, and past
+   a margin of ~37 the float64 sigmoid returns exactly 1.0, collapsing
+   distinct prompts into ties. Comparing the two rankings costs nothing and
+   may hand back free resolution. Nothing found does this.
 
-4. **Pre-registered, demonstrably failable gates.** Unusual in this area.
-   `scripts/verify_gates.py` asserts each verdict against synthetic ladders
-   built to be a pure threshold slide, a real capability loss, a genuine
-   improvement, an underpowered sample, a noise wobble and two families of
-   unequal skill.
+4. **Guard kind as the explanatory variable.** Generative guards emit a token;
+   encoder classifiers emit a trained probability. If self-knowledge tracks
+   architecture, the field's move to LLM-based guards has a cost nobody has
+   priced.
 
-5. **The repair.** If Gate D returns `REPAIRED`, recalibration at matched FPR
-   removes the effect at zero cost — no retraining, no extra memory. A
-   practitioner recommendation that follows from the diagnosis.
-
-6. **Two architectures, replication reported rather than averaged.** Every
-   analysis is computed within family; `replicated` is a reported field.
+5. **Pre-registered, demonstrably failable gates.**
+   `scripts/verify_selective.py` asserts each verdict against synthetic score
+   distributions built to trigger it. Unusual in this area.
 
 ---
 
@@ -202,29 +249,34 @@ Ranked by how much weight each can bear.
 
 Stated plainly so it can be checked rather than hoped about.
 
-- **A paper that runs a bit ladder on a guard model and reports AUROC.** Not
-  found, but absence of evidence after one afternoon of search is weak
-  evidence of absence. Re-run this scan before submission.
-- **Reading [Silent Alarm](https://arxiv.org/pdf/2607.12792) and finding it
-  already compares danger recognition across quantization levels with
-  threshold-free metrics.** The single highest-priority item on this page.
-- **Polarized scores.** Not a novelty risk but an existence risk: if
-  Llama Guard 3's verdict probabilities are pinned at 0 and 1 the way the
-  Artificial Analysis benchmark reports for some guards, every threshold-free
-  metric in this project is computed on an instrument with one division on its
-  scale, and Gate C would confirm H3 for entirely the wrong reason.
-  `evaluation/score_range.py` checks this, and `smoke_test.sh` runs it before
-  the sweep. **Read its verdict before spending GPU hours.**
+- **A paper comparing uncertainty signals for guard error-routing at matched
+  budget.** Not found after targeted search, but Safety-Flag was also missed
+  on the first pass because it is framed as a calibration benchmark rather
+  than as selective prediction. **Search both vocabularies before submission.**
+- **Safety-Flag turning out to test alternative signals** in a section the
+  abstract does not mention. Read it in full. Highest-priority item on this
+  page.
+- **Signal 3 collapsing into signal 2.** If perturbation instability is just a
+  noisy margin (arXiv 2402.13006), the expensive half of the study returns
+  nothing. Gate S4 is the detector, and this is a finding rather than a
+  failure — but it changes which paper gets written.
+- **Guards turning out to be well calibrated with usable score resolution.**
+  Then the motivating pathology is absent, S3 likely returns
+  `NATIVE_IS_BEST`, and the honest output is the bounded negative result.
 
 ---
 
 ## Open items
 
-- [ ] Read [Silent Alarm](https://arxiv.org/pdf/2607.12792) in full.
-- [ ] Read [When Quantization Affects Confidence](https://arxiv.org/abs/2405.00632)
-      in full; confirm it does not compute AUROC anywhere.
-- [ ] Upgrade every `SNIPPET` to at least `ABSTRACT` before writing the
-      related-work section.
-- [ ] Search again closer to submission; this area is moving fast.
-- [ ] Check whether any guardrail leaderboard already publishes AUROC per
-      quantization level.
+- [ ] Read [Safety-Flag](https://arxiv.org/abs/2609.19072) in full; confirm it
+      does not test alternative uncertainty signals anywhere.
+- [ ] Map Safety-Flag's released item-level scores against our five datasets
+      (XSTest, WildGuard and ToxiChat look like matches) and reuse their
+      baseline directly.
+- [ ] Read the semantic-entropy line of work and cite it as the source of the
+      signal-3 technique.
+- [ ] Verify every `SNIPPET` resolves to a real paper saying what the snippet
+      implies, before any of it reaches a bibliography.
+- [ ] Re-run this scan against BOTH vocabularies (selective prediction /
+      abstention / risk-coverage, and calibration / reliability / confidence)
+      closer to submission.

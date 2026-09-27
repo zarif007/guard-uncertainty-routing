@@ -12,8 +12,8 @@ On a pod that must be the persistent volume -- setup_runpod.sh sets it.  The
 container disk is ephemeral and the full set is ~145 GB.
 
     python scripts/prefetch_models.py --check
-    python scripts/prefetch_models.py --models bit-ladder
-    python scripts/prefetch_models.py --models all-families-ladder
+    python scripts/prefetch_models.py --models guard-panel
+    python scripts/prefetch_models.py --models precision-ladder
 """
 
 import argparse
@@ -105,9 +105,9 @@ def report(keys):
 
 def main():
     parser = argparse.ArgumentParser(description="Download model weights before a run")
-    parser.add_argument("--models", nargs="+", default=["all-families-ladder"],
-                        help="registry keys or group specs (bit-ladder, algorithm-4bit, "
-                             "all-families-ladder, <family>:all)")
+    parser.add_argument("--models", nargs="+", default=["guard-panel"],
+                        help="registry keys or group specs (guard-panel, "
+                             "precision-ladder, generative, encoders, <family>:all)")
     parser.add_argument("--check", action="store_true", help="report only, download nothing")
     parser.add_argument("--force", action="store_true", help="proceed despite low disk")
     args = parser.parse_args()

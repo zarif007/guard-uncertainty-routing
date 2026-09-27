@@ -1,11 +1,38 @@
-# Quantized OSS Guardrails
+# Guard Uncertainty Routing
 
-Decision-boundary drift in quantized LLM guardrails.
+Which of a safety filter's decisions should a human double-check?
 
-> **Not Safer, Just Louder** — quantization shifts a guard model's operating point, causing
-> fixed-threshold safety metrics to change even when discrimination is stable.
+> **Native confidence is the baseline, not the finding.** A guard's own
+> confidence already beats random deferral. The question is whether anything
+> beats *it*.
 
-This file is the operating manual. Plan changes live in `CHANGES_FOR_PLANNER.md`.
+Plain-language walkthrough: `docs/study_protocol.md`.
+What each outcome licenses: `docs/preregistration.md`.
+Literature and differentiation: `docs/related_work.md`.
+
+---
+
+## The question
+
+A guard classifies every message and gets some wrong. A human reviewer has
+capacity for a fraction of them. An **uncertainty signal** decides which
+fraction. We compare five.
+
+| # | Signal | What it reads | Cost |
+|---|---|---|---|
+| 1 | `conf_native` | The guard's probability, distance from the 0.5 cut | free — **the baseline** |
+| 2 | `conf_margin` | The raw logit gap, before the sigmoid squashes it | free |
+| 3 | `conf_stability` | Does the verdict survive rewording the message? | ~k× inference |
+| 4 | `conf_model_agree` | Do several different guards agree? | +1 run per guard |
+| 5 | `conf_precision_agree` | Does one guard agree with itself across quantizations? | free if the ladder ran |
+
+Signals 3, 4 and 5 never read the confidence score, which is the point: they
+remain computable on a guard whose scores are pinned at 0 and 1.
+
+**Why signal 2 is not redundant.** `p_unsafe` is `sigmoid(margin)`. Past a
+margin of about 37 the float64 sigmoid returns exactly `1.0`, so every prompt
+beyond that collapses into a tie. The ranking survives in the margin and dies
+in the probability. Comparing 1 against 2 measures that loss and costs nothing.
 
 ---
 
@@ -18,315 +45,145 @@ bash scripts/install_engine.sh
 ```
 
 `llama-cpp-python` is **not** in `requirements.txt`. The correct wheel is
-backend-specific, and a plain `pip install llama-cpp-python` gives a CPU-only
-build that would silently run the whole experiment on the host CPU of a GPU
-pod. `install_engine.sh` detects the backend, installs the matching build, and
-verifies `llama_supports_gpu_offload()`. `run_model.py` refuses to start a CUDA
-run on a CPU-only wheel.
+backend-specific, and a plain `pip install` gives a CPU-only build that would
+silently run the whole experiment on the host CPU of a GPU pod.
+`install_engine.sh` detects the backend and verifies
+`llama_supports_gpu_offload()`.
 
-`torch` and `transformers` are only needed for the Phase 6 layer sweep:
-
-```bash
-pip install -r requirements-mechanism.txt
-```
-
-`llama.cpp` binaries are only needed for Phase 5 (imatrix) and Phase 7 (mixed precision):
+Encoder guards run through `transformers`, not llama.cpp:
 
 ```bash
-bash scripts/build_toolchain.sh
-export LLAMA_QUANTIZE=third_party/llama.cpp/build/bin/llama-quantize
-export LLAMA_IMATRIX=third_party/llama.cpp/build/bin/llama-imatrix
+pip install -r requirements-encoder.txt
 ```
-
----
-
-## Hardware
-
-| | Dev machine | Local CPU box | RunPod pod |
-|---|---|---|---|
-| Memory | 16 GB unified (M4) | 64 GB RAM | 24 GB VRAM (4090) |
-| Compute | Metal | CPU only | CUDA |
-| Disk | ~21 GB | 200 GB+ | 250 GB network volume |
-
-FP16 Llama-Guard-3-8B is 16.1 GB of weights plus ~0.5 GB of KV cache at
-`n_ctx=4096`, so it fits a 24 GB card with headroom. `--n-gpu-layers 0` forces
-CPU; `-1` offloads everything. Q8 is never a substitute for FP16.
-
-### Which numbers depend on the hardware
-
-Two kinds of number come out of this pipeline.
-
-**Decision metrics** — safety rate, precision/recall/F1, FPR/FNR, AUROC/AUPRC,
-ECE/Brier, flip and category analysis — are functions of the logits. They do
-not depend on the machine, provided every precision is scored on the *same*
-backend and build. llama.cpp's CUDA kernels are not bitwise identical to its
-CPU kernels, and Gate C's tolerance is an AUROC gap of 0.02, so a sweep that
-mixed backends would be indefensible.
-
-**Efficiency metrics** — latency, throughput, memory — are properties of the
-(model, quantization, engine, hardware) configuration, not of quantization
-alone. Running all precisions on one pod is therefore a *more* controlled
-comparison, not a weaker one. Two consequences for how they are written up:
-
-- Name the hardware in the claim. Not "Q4 is 3x faster than FP16", but "on an
-  RTX 4090 with llama.cpp <version>, Q4 is 3x faster than FP16."
-- Expect the speed gap to be small on GPU. CPU inference is bandwidth-starved,
-  so low precision wins big; a short single-prompt prefill on a 4090 is
-  launch-overhead bound, so precisions converge and 4-bit can even lose to FP16
-  on dequantization cost. Memory differences stay large and real. "On GPU,
-  quantization buys memory rather than latency" is a result, not a failure.
-
-Every run records an environment fingerprint (`env_hash`: backend, GPU name,
-driver, llama.cpp version, processor). `analyze.py` reports whether all
-prediction files share one, and `--require-same-hardware` makes it fatal.
-`environments.csv` lists what was found. Partial GPU offload — llama.cpp
-quietly leaving some layers on the host when VRAM is short — aborts the run,
-because a CPU/GPU hybrid is not comparable to a full offload.
 
 ---
 
 ## Setup
 
-Ordered. Each step is checkable; do not skip to inference before step 6 passes.
-
-**1 — Accept the four gated datasets.** One click each, granted instantly (they
-gate on `auto`, no manual review). Needed for Phases 4, 5 and 8, not for the
-core result.
+**1 — Accept the gated datasets** (one click each, auto-approved).
 
 ```
 https://huggingface.co/datasets/allenai/wildguardmix
-https://huggingface.co/datasets/sorry-bench/sorry-bench-202503
-https://huggingface.co/datasets/walledai/StrongREJECT
 https://huggingface.co/datasets/lmsys/lmsys-chat-1m
 ```
 
-Phase 6 also needs `meta-llama/Llama-Guard-3-8B`, which is gated the same way.
+**2 — Authenticate.** `huggingface-cli login`
 
-**2 — Authenticate.**
-
-```bash
-huggingface-cli login
-```
-
-**3 — Bootstrap the pod** (RunPod or any CUDA host). Puts the HF cache on the
-persistent volume, installs the backend-matched engine build, prints the
-environment fingerprint.
+**3 — Bootstrap the pod.**
 
 ```bash
 VOLUME=/workspace bash scripts/setup_runpod.sh
 ```
 
-On the local CPU box instead: `pip install -r requirements.txt && bash scripts/install_engine.sh`.
-
-**4 — (Not needed for this paper.)** Every model in scope is published on the
-hub, so no local quantization is required. The `build_toolchain.sh` /
-`build_missing_quants.py` path exists for the algorithm-axis follow-up, which
-needs `q4_0` — a file the upstream repo never published.
-
-**5 — Preflight.** Checks engine build, GPU offload support, NVML, HF auth,
-gated access, every model filename, disk headroom and template fingerprints.
-Exits non-zero on anything fatal.
+**4 — Preflight.** Checks engine build, GPU offload, HF auth, every model
+filename, disk headroom, template fingerprints. Non-zero exit on anything fatal.
 
 ```bash
-python scripts/preflight.py --full
+python scripts/preflight.py --models guard-panel
 ```
 
-**6 — Smoke test.** Two precisions end to end, metrics printed.
+**5 — Verify the gates before spending GPU hours.** Runs every gate against
+synthetic score distributions whose truth is known by construction. A test
+that cannot fail on data built to fail it is decoration.
 
 ```bash
-MODELS="q3 q4" N=40 bash scripts/smoke_test.sh
+python scripts/verify_selective.py
 ```
 
-On a GPU pod, confirm `Device memory (VRAM delta)` is close to the GGUF size —
-if it is not, llama.cpp is not fully offloading and no timing is meaningful.
-
-Then read the **score dynamic range** block, printed first and above every
-other metric. A guard whose verdict probabilities are pinned at 0 and 1 still
-produces an AUROC, a TOST interval and a TPR at a target FPR, and all three
-are meaningless — a scale with one division cannot show a difference, so Gate
-C would confirm H3 for the wrong reason. Published guardrail benchmarks report
-exactly this on some guards, with 99.8% of scores at the extremes. `POLARIZED`
-means the prompt set cannot answer the question with these models, and the fix
-is a harder or more borderline prompt set, not a weaker claim. Check it before
-committing GPU hours; it can also be run on its own:
-
-```bash
-python -m evaluation.score_range --predictions-dir results/smoke
-```
-
-**7 — Prefetch weights.** Otherwise each model downloads lazily on first use,
-which puts a multi-gigabyte transfer inside the run: a pod interrupted mid-sweep
-re-fetches, and a network failure surfaces as a failed phase rather than a
-failed download.
-
-```bash
-python scripts/prefetch_models.py --check --models bit-ladder
-```
-
-```bash
-python scripts/prefetch_models.py --models bit-ladder
-```
-
-Weights land in `$MODEL_WEIGHTS_DIR` (`setup_runpod.sh` points it at the volume).
-`HF_HOME` alone is not enough — GGUFs are fetched with an explicit `cache_dir`,
-which takes precedence, so without this variable ~145 GB lands on the pod's
-ephemeral container disk and is lost when the pod stops.
-
-Group sizes: `bit-ladder` 49 GB, `algorithm-4bit` 24 GB, `algorithm-3bit` 15 GB,
-`all-families-ladder` 92.5 GB, everything 151 GB. Prefetch the groups for the
-phases you are about to run rather than the whole set; use `--evict` on
-`run_phase.py` if the volume cannot hold a group.
-
-**8 — Datasets, then run.**
+**6 — Datasets, then run.**
 
 ```bash
 python scripts/download_datasets.py --core
+MODELS="guard-panel" bash scripts/run_everything.sh
 ```
 
-```bash
-MODELS="bit-ladder" RESUME=1 bash scripts/run_everything.sh
-```
-
-`RESUME=1` lets a preempted pod continue instead of rescoring: predictions are
-checkpointed every 50 rows, and a resume onto a changed prompt set is refused.
-
-Read `results/tables/gates.json` before doing anything else.
+Read `results/tables/gates.json` before anything else.
 
 ---
 
 ## Phases
 
-| Phase | Command | Gate |
+| Phase | Command | Decides |
 |---|---|---|
-| 0 Validity | `python scripts/run_phase.py --phase 0 --n-gpu-layers 0` | A: pattern survives the official template |
-| 1 Scores | `python scripts/verify_scorer.py --model q4 --dataset xstest` | B: >99% agreement, >5x cache speedup |
-| 2 Threshold-free | `python evaluation/analyze.py` | C: paired AUROC gap equivalent within 0.02 (TOST) |
-| 3 Calibration | included in `analyze.py` | D: recalibration collapses the gap |
-| 4 Scale | `python scripts/run_phase.py --phase 4 --evict` | replication across models and traffic |
-| 5 Algorithms | *deferred to a follow-up paper* | do same-bit algorithms diverge? |
-| 5b imatrix | `python scripts/build_imatrix.py` | does safety calibration data help? |
-| 6 Mechanism | `python evaluation/layer_sweep.py --n-prompts 200` | is drift concentrated in few layers? |
-| 7 Mixed precision | `python scripts/build_mixed_precision.py --k 1 2 4 8` | Q3 memory, FP16 behaviour? |
-| 9 Deployment | included in `analyze.py` | safety per GB, cascade |
-| 9b Throughput | `python scripts/benchmark_throughput.py --models bit-ladder` | single-stream prompts/s and prefill tokens/s |
+| 0 Gate validation | `python scripts/verify_selective.py` | do the gates fire on known-truth data? |
+| 1 Free signals | `python scripts/run_phase.py --phase 1` | S1, S2 — is there a signal, and does the margin beat the probability? |
+| 2 Perturbation | `python scripts/perturb.py --model reference --dataset xstest` | S4 — does instability add anything beyond the margin? |
+| 3 Full panel | `python scripts/run_phase.py --phase 3` | S3, S5 — the crux, and whether guard kind decides it |
+| 4 Precision ladder | `python scripts/run_phase.py --phase 4` | signal 5, reusing the quantization runs |
 
-Phases 0–3 run on the 650 prompts committed to git. The other three datasets
-scale the sample so Gate C's equivalence test has the power to return a verdict
-rather than `UNDERPOWERED`. The full run is:
-
-```bash
-MODELS="all-families-ladder" SUBSET=1500 RESUME=1 \
-  DATASETS="harmbench xstest toxicchat wildguardtest openai_moderation" \
-  bash scripts/run_everything.sh
-```
-
-5,150 prompts x 12 models = 61,800 scored rows, roughly five hours on a 4090
-after the 92.5 GB weight download.
+Phases 1 and 2 are genuine stop points. Phase 2 in particular decides whether
+the expensive signal earns its cost before it is scaled.
 
 ---
 
-## Models
+## Guards
 
-Keys are `family:precision`. Short aliases: `fp16 q8 q6 q5 q4 q3 q2` map to the 8B family.
-
-```
-llama-guard-3-8b    fp16 bf16 q8_0 q6_k q5_k_m q5_k_s q4_k_m q4_0 iq4_xs
-                    q3_k_l q3_k_m q3_k_s iq3_xs q2_k
-qwen3guard-gen-8b   fp16 q8_0 q6_k q5_k_m q4_k_m q3_k_m q2_k
-
-**Scope of this paper: 12 models — the two bit ladders, Q3 to FP16.**
+Keys are `family:precision`. The axis that matters is **kind**, not bit width.
 
 ```
-llama-guard-3-8b    fp16 q8_0 q6_k q5_k_m q4_k_m q3_k_m
-qwen3guard-gen-8b   fp16 q8_0 q6_k q5_k_m q4_k_m q3_k_m
+generative (token logit)        llama-guard-3-8b, qwen3guard-gen-8b, llama-guard-3-1b
+encoder    (probability head)   encoder-moderation
 ```
 
-`q2_k` is out of scope and not in `BIT_LADDER`. The question is what *moderate*
-quantization does to a guard's operating point, and 2-bit is where k-quants
-start losing the model itself — a genuine capability break at the bottom rung
-should not decide a gate about the middle of the ladder. It stays in the
-registry as a labelled control: run it explicitly with
-`--models llama-guard-3-8b:q2_k` for a "where does it finally break" figure.
+A generative guard's confidence is a by-product of next-token prediction
+trained on hard labels. An encoder's is a trained probability. If the two
+classes differ systematically in whether their confidence ranks errors, that
+is an architectural finding and it goes in the abstract.
 
-That is `all-families-ladder` (92.5 GB), the default for `preflight.py`,
-`prefetch_models.py` and `verify_models.py`. It answers one question: what does
-lower precision do to a guard's operating point, and does the pattern replicate
-across two architectures.
+Groups: `guard-panel` (default, 4 guards, 35 GB), `precision-ladder`
+(6 rungs of the reference family, 46 GB), `generative`, `encoders`.
 
-The remaining seven registry entries — `bf16 q5_k_s q4_0 iq4_xs q3_k_l q3_k_s
-iq3_xs` — are **reserved for a follow-up paper** on the algorithm axis: at a
-fixed bit budget, does the compression method change the decision? They stay in
-the registry and `evaluation/gates.py` keeps a working test
-(`algorithm_axis_report`, McNemar + DeLong, Holm-corrected, per axis), so that
-work resumes from a known-good state. Nothing in the default path downloads or
-runs them, and their two claims read `NOT_TESTED` in `claims_to_evidence.csv`,
-which is the correct record for this paper.
-
-If you pick that work up: `q4_0` is not on the hub and must be built
-(`build_missing_quants.py`), and consider restoring `q4_k_s` and `iq4_nl` —
-dropped here as duplicates, but useful there as within-family controls.
-```
-
-Group specs: `bit-ladder`, `algorithm-4bit`, `algorithm-3bit`, `all-families-ladder`,
-`<family>:all`.
-
-```bash
-python scripts/run_phase.py --phase 0 --models bit-ladder --dry-run
-```
-
-Prints disk requirements before downloading anything. Filenames in `models/registry.py` are
-best-effort; if one 404s the loader lists what the repo actually contains.
+**Model ids are best-effort.** `preflight.py` checks each against the hub and
+names what is actually published. The encoder entry in particular needs
+verifying — many moderation encoders score *toxicity*, which is not the same
+label as *harmful request*. Run `scripts/label_audit.py` before trusting any
+comparison that uses it.
 
 ---
 
 ## Datasets
 
-Five specs in `scripts/datasets_registry.py`, all prompt-level English safety:
-
 | Dataset | Rows | Role |
 |---|---:|---|
-| `harmbench` | 200 | harmful prompts; committed to git |
+| `toxicchat` | 5,083 | **headline** — real traffic, realistically low harmful rate |
 | `xstest` | 450 | benign-but-borderline; committed to git |
-| `toxicchat` | 5,083 | real user traffic at a realistic low base rate |
-| `wildguardtest` | 1,725 | standard guard benchmark; **gated** (auto-approve) |
-| `openai_moderation` | 1,680 | standard moderation benchmark |
+| `harmbench` | 200 | all-harmful; committed to git |
+| `wildguardtest` | 1,725 | replication; **gated** (auto-approve) |
+| `openai_moderation` | 1,680 | replication |
 
-They all ask one question — given a prompt, is it harmful? — so pooling them is
-legitimate and the pooled AUROC means something. The registry previously held
-25 specs across six tiers (over-refusal, category/severity, adversarial,
-multilingual, response-level). Those answered Phase 8 questions, fed none of
-the four gates, and were never run; they were removed rather than left
-declared but unused. The git history has them.
-
-Probe before downloading — checks every spec loads and normalizes without
-pulling the data:
-
-```bash
-python scripts/verify_datasets.py --tier A
-```
-
-`GATED` means the terms are not accepted (step 1). `LOAD_FAIL` means a wrong id/config/split.
-`NORMALIZER` means it loads but the field names differ. Then:
-
-```bash
-python scripts/download_datasets.py --tier A
-python scripts/download_datasets.py --composite --composite-base-rate 0.05
-```
+All five ask one question — given a prompt, is it harmful? — so pooling them
+is legitimate. ToxicChat is the headline because routing review only matters
+where the base rate is realistic.
 
 ---
 
-## Disk management
+## Gates
 
-Weights go to `$MODEL_WEIGHTS_DIR`, defaulting to `models/weights`. Set it to a
-persistent path on any pod.
+Criteria are fixed in `evaluation/gates.py` before any data is seen, and
+`scripts/verify_selective.py` proves each one can fail.
 
-The full model set is ~151 GB. Either prefetch per group (step 7) or evict:
+**S1 — is native confidence usable here?** Expected to pass. Replicates
+Safety-Flag on our models. A failure means our pipeline is broken, not that we
+found something.
 
-```bash
-python scripts/run_phase.py --phase 5 --evict --n-gpu-layers 0
-```
+**S2 — the squashing tax.** Does the raw margin beat the probability? Free to
+test, free to act on. If it passes, rank on the margin everywhere.
 
-Downloads, scores, deletes the GGUF, moves on. Predictions are kept.
+**S3 — the crux.** Does any alternative signal beat native confidence, by at
+least 0.01 AURC, surviving Holm correction across every signal tested? The
+baseline is native confidence. `NATIVE_IS_BEST` is a real outcome and gets
+written up.
+
+**S4 — is instability independent?** The guard against S3 passing for a boring
+reason. If perturbation instability merely restates a small margin, it costs
+~10× the inference and adds nothing. Tested by correlation, and by whether
+stability still ranks errors in the saturated region where the margin provably
+cannot.
+
+**S5 — does guard kind decide it?** Generative versus encoder.
+
+`claims_to_evidence.csv` marks every claim `LICENSED`, `NOT_LICENSED` or
+`NOT_TESTED`. Never write a claim the table has not licensed.
 
 ---
 
@@ -334,237 +191,56 @@ Downloads, scores, deletes the GGUF, moves on. Predictions are kept.
 
 ```
 models/
-  registry.py        model families x precisions x algorithms
+  registry.py        guard families x kind x backend
   templates.py       official Llama Guard 3 and Qwen3Guard prompts
   llm_loader.py      GGUF scorer: predict_score, prefix KV cache, label tokens
-  hf_loader.py       PyTorch scorer for the layer sweep
-  fake_quant.py      RTN quantize-dequantize, output-projection asymmetry
-scripts/
-  datasets_registry.py   24 dataset specs with normalizers
-  download_datasets.py   materialize to datasets/normalized/*.csv
-  verify_datasets.py     probe every spec without full download
-  data_loader.py         load, validate, stratified subset
-  run_model.py           score one model on one dataset
-  run_phase.py           orchestrate a phase, with disk checks and eviction
-  verify_scorer.py       Gate B
-  verify_gates.py        gates vs synthetic data of known truth
-  label_audit.py         Gate A label-noise audit
-  preflight.py           environment, models, datasets, templates: all checks
-  prefetch_models.py     download weights ahead of a run
-  smoke_test.sh          two precisions end to end, metrics printed
-  build_missing_quants.py  q4_0 / bf16, absent from the upstream repo
-  benchmark_throughput.py single-stream prompts/s and prefill tokens/s
-  install_engine.sh      backend-matched llama-cpp-python build
-  setup_runpod.sh        pod bootstrap: volume, engine, fingerprint
-  build_toolchain.sh     compile llama-quantize and llama-imatrix
-  build_imatrix.py       generic vs safety-domain calibration
-  build_mixed_precision.py  protect top-k sensitive layers
-  output_asymmetry.py    why the boundary moves: label-row quantization error
+  hf_loader.py       transformers scorer for encoder guards
 evaluation/
-  hardware.py          backend detection, GPU metadata, VRAM sampling
-  profiling.py         backend-aware memory, median-based latency
-  metrics.py           legacy + threshold-free metrics
-  threshold_analysis.py AUROC, AUPRC, ROC, TPR@FPR, base-rate, log-DOR
-  calibration.py       ECE, Brier, reliability, temperature, recalibration
-  statistical_tests.py McNemar, DeLong, bootstrap, Holm, BH
-  disagreement.py      agreement matrix, flips, flip-rate vs distance
-  categories.py        per-category, severity weighting, expected cost
-  deployment.py        safety per GB, Pareto, iso-memory, cascade
-  layer_sweep.py       PyTorch fake-quant sensitivity probe
-  score_range.py       can a threshold move here?  run before the sweep
-  gates.py             gate logic, hardware consistency, claims-to-evidence
-  analyze.py           runs everything, writes 21 tables and 9 figures
+  selective.py       risk-coverage, AURC, errors-caught-at-budget, signal comparison
+  signals.py         the five uncertainty signals
+  gates.py           S1-S5, claims-to-evidence
+  analyze.py         runs everything, writes tables and figures
+  score_range.py     can a threshold move here?  measured, not assumed
+  calibration.py     ECE, Brier, temperature (baseline construction only)
+  statistical_tests.py  bootstrap, Holm, BH, McNemar, DeLong
+  threshold_analysis.py AUROC, AUPRC, ROC, TPR@FPR
+  disagreement.py    agreement matrix, flips
+  hardware.py        backend detection, GPU metadata
+scripts/
+  perturb.py         generate and validate meaning-preserving rewordings
+  verify_selective.py  gates vs synthetic data of known truth
+  run_model.py       score one guard on one dataset
+  run_phase.py       orchestrate a phase
+  preflight.py       environment, models, datasets, templates
+  label_audit.py     label-noise and task-alignment audit
 ```
 
 ---
-
-## Outputs
-
-`results/tables/` — environments, throughput, summary_metrics, pairwise_tests,
-base_rate_sensitivity, per_dataset,
-recalibration, error_decomposition, per_category, category_degradation,
-severity_weighted_risk, expected_cost, agreement_matrix, flip_summary,
-flip_rate_by_distance, borderline_examples, safety_per_gb, memory_pareto, iso_memory,
-uncertainty_cascade, claims_to_evidence, gates.json
-
-`results/figures/` — roc_overlay, roc_zoom_low_fpr, threshold_sweep, base_rate_sensitivity,
-margin_distributions, reliability, flip_rate_vs_distance, memory_pareto, uncertainty_cascade
-
----
-
-## Gates
-
-Criteria are fixed in `evaluation/gates.py` before any data is seen. That
-commitment only means something if the criteria can be failed, so
-`scripts/verify_gates.py` runs every gate against synthetic prediction sets
-whose truth is known by construction — a pure operating-point slide, a real
-capability loss, an underpowered sample, and two families of unequal intrinsic
-skill — and asserts each verdict. Run it before the sweep and after any edit to
-`gates.py`:
-
-```bash
-python scripts/verify_gates.py
-```
-
-
-This paper makes one claim: quantization shifts a guard's operating point. The second
-claim — that the algorithm matters at fixed bit width — is deferred, and its gate is
-implemented but reads `NOT_TESTED`.
-
-Every within-ladder analysis is computed **within a family** and then compared
-across families: the four gates, the flip tables (each family flips against its
-own FP16), the base-rate crossover, and the uncertainty cascade.
-The ladder is a within-architecture question: a table holding both families
-sorted by bit width interleaves `llama-guard-3-8b:q8_0` with
-`qwen3guard-gen-8b:q8_0`, so any trend or spread taken over the pooled table
-measures the gap between two different models rather than the effect of
-precision. Each gate reports `per_family` verdicts plus `replicated`, which is
-what the second family exists to answer.
-
-The same rule applies outside the gates. A flip is "this prompt changed verdict
-when I quantized *this* model", so scoring `qwen3guard-gen-8b:q2_k` against
-`llama-guard-3-8b:fp16` measures the distance between two different guards —
-and because the two boundaries sit in different places, that artefact has a
-direction: as one family's ladder drifts toward the other's boundary its
-apparent flip rate *falls* with precision, reversing the trend the flip
-analysis exists to show. A base-rate "crossover" pooled across families is
-usually just the stronger architecture winning, and a cascade pairing one
-family's Q2 with the other's FP16 is an architecture swap, not a precision one.
-
-**A — validity.** This is the gate for the headline claim: that safety is not
-monotonic in precision.
-
-`PATTERN_SURVIVES` requires a *significant reversal*. A reversal is a pair of
-rungs where the safety curve moves against its own overall trend; it counts
-only if the paired McNemar test for that specific pair, restricted to the
-harmful prompts, survives Holm correction. Seven rungs measured on a few
-hundred prompts will nearly always contain a small dip by chance — 12 of 12
-synthetic runs in `verify_gates.py` case 6 produce two or three — so reading
-"not strictly monotonic" as "non-monotonic" would license the paper's central
-claim on sampling error. `strictly_monotonic_in_sample` is reported separately
-from `non_monotonic_confirmed`, and only the second licenses anything.
-
-One practical warning: the test is run on the safety rate, which saturates.
-If a guard detects ~99% of harmful prompts at every precision, no reversal can
-reach significance regardless of what the model is doing — a real bump gets
-compressed into a one-prompt difference. Check `summary_metrics.csv` for
-saturation before concluding the pattern is absent; a ceiling is a property of
-the prompt set, not a result.
-
-If no reversal survives, the ladder is monotonic → If the ladder *is* monotonic but the
-true positive rate and the false positive rate rise together (correlation ≥ 0.5
-across the ladder), the verdict is `THRESHOLD_SHIFT`, not a refutation: a guard
-flagging more of everything has moved its operating point, which is this
-paper's claim rather than a failure of it. `MONOTONIC` — safety moving with
-precision while the false positive rate does not follow — is the status that
-retires the anomaly and makes the finding "prompt formatting explains reported
-quantization-safety effects."
-
-**B — scorer.** `p_unsafe >= 0.5` reproduces argmax labels on >99% of rows. Only the
-agreement half is binding. The prefix-cache speedup is informational and its target is
-backend-dependent (CPU 5x, Metal 3x, CUDA 1.2x): on a GPU the forward pass is short and
-launch-overhead bound, so a correct cache saves far less wall clock. `verify_scorer.py`
-also checks that the cache does not change any score, which matters on CUDA where
-`save_state`/`load_state` round-trips the KV cache through host memory.
-
-**C — discrimination.** The hinge of the paper, so the test is built to be
-failable. Every precision scores the same prompts, so each pair is compared
-with a **paired** DeLong test, and the gap is judged by **equivalence**, not by
-non-significance:
-
-- `H3_REJECTED_DEGRADATION` / `H3_REJECTED_IMPROVEMENT` — some pair differs by
-  ≥ 0.02 AUROC *and* its DeLong test survives Holm correction. Significance
-  alone is not enough; on a large enough sample a 0.001 gap is significant and
-  irrelevant. The suffix says which end of the ladder the gap favours, after
-  orienting each pair by bit width: `auroc_delta` is `auc_a - auc_b` over an
-  arbitrary pair ordering, so its raw sign carries no information. Both
-  suffixes reject H3, but they are opposite findings — degradation is the
-  ordinary result, improvement is the strong form of this project's premise
-  and the one outcome Gate D cannot repair away. `H3_REJECTED_MIXED` means
-  pairs point both ways or the families disagree; bare `H3_REJECTED` means bit
-  widths were unavailable and the direction could not be established.
-- `H3_CONFIRMED` — every pair passes TOST: the 90% CI on the paired difference
-  lies entirely inside ±0.02.
-- `UNDERPOWERED` — neither. The only condition authorising early data scaling.
-
-Confirming H3 is a claim that the gap is *small*, and "we failed to find a
-difference" does not support it — a weak test fails to find anything. The
-earlier criterion (do two marginal bootstrap CIs overlap?) had both failure
-modes: on a few hundred prompts those CIs are wide enough to overlap almost
-regardless of the truth, so confirmation was near-automatic and rejection near
-unreachable. Under the equivalence rule weak data lands on `UNDERPOWERED`,
-which is the honest verdict, and the hypothesis can no longer be confirmed by
-the weakness of its own test.
-
-**P — peak improvement.** Does any quantized rung actually beat its own
-family's FP16 on safety rate, with the paired McNemar test on the harmful
-prompts surviving correction? This is the premise the research plan opens with
-and nothing else tests it: Gate A asks whether the curve *reverses*, which is a
-different question — a curve can reverse without any rung beating FP16, and a
-rung can beat FP16 on a perfectly monotone curve.
-
-`IMPROVEMENT_CONFIRMED` does not on its own license "quantization makes guards
-safer". Read it with C and D: with `H3_CONFIRMED` + `REPAIRED` the gain is real
-but free, reproducible by moving FP16's own threshold, so it is a property of
-the operating point rather than of quantization; only
-`H3_REJECTED_IMPROVEMENT` licenses the unqualified claim. The three readings
-are fixed in `docs/preregistration.md`.
-
-**D — repair.** Recalibration at matched FPR collapses within-family
-cross-precision TPR spread below 0.02.
-
-`claims_to_evidence.csv` marks every claim `LICENSED`, `NOT_LICENSED` or `NOT_TESTED`.
-Never write a claim the table has not licensed.
-
----
-
-## Related work
-
-`docs/related_work.md` is the literature scan and the differentiation
-argument. Its headline: *"quantization can improve safety, sometimes
-non-monotonically"* is already published for generator models, so the
-observation is not ours. What is unoccupied is quantizing the **guard** and
-evaluating it threshold-free, plus the temperature/boundary decomposition.
-The scan also records the two papers that must be read in full before the
-related-work section is written.
 
 ## Known gaps
 
-- The layer sweep uses RTN fake quantization, which does not reproduce k-quant block
-  structure. It ranks layers; Phase 7 validates the ranking with real GGUF builds. This
-  caveat belongs in the methods section.
-- The layer sweep runs in bfloat16 (`--dtype auto`; float16 on MPS). float32 is rejected
-  outright: an 8B model needs ~32 GB in float32, beyond the experiment hardware, and the
-  extra mantissa is irrelevant to a 3-4 bit RTN perturbation whose relative Frobenius
-  error is 0.11 (4-bit) to 0.22 (3-bit) against bfloat16's 0.0017.
-- `benchmark_throughput.py` measures a single request stream. Concurrent batched serving
-  would need llama.cpp's server with continuous batching — a different system and a
-  different experiment. Say "single-stream" in any throughput claim.
-- Qwen3Guard emits three labels. `--controversial-policy` (default `strict`) decides how
-  Controversial folds into the binary decision; all three logits are written to the
-  predictions CSV so the choice can be revisited without re-running. "Controversial" is
-  not a single token in Qwen's vocabulary — it starts with the shared prefix `" Cont"` —
-  so its logit is a slight over-estimate. The safe/unsafe tokens are clean, so the binary
-  margin is unaffected.
-- Three label mappings in `datasets_registry.py` are judgement calls, each marked with a
-  comment at its normalizer: PHTest drops its `controversial` class rather than forcing a
-  binary label; XSafety excludes its `commonsense` category, which is not a harm probe;
-  RTP-LX binarizes its 1-5 mean annotator toxicity at 3.0. Each changes the base rate of
-  its dataset and belongs in the methods section.
+- **Perturbation quality is a threat, not a detail.** A paraphrase that
+  changes meaning produces instability that is not uncertainty.
+  `scripts/perturb.py` records a semantics-preserved check per variant;
+  variants that fail are dropped before the signal is computed, and the drop
+  rate is reported.
+- **Cross-model agreement is confounded.** Different guards have different
+  decision boundaries, so disagreement partly measures "these are different
+  models" rather than "this case is hard." Cross-*precision* agreement does
+  not have this problem, which is why it is preferred.
+- **`PIN_EPS = 1e-3` in `score_range.py` is a screening heuristic.** It flags
+  any margin beyond ~6.9 as pinned, far inside the range where ranking
+  information still exists. It never decides a gate.
+- **Qwen3Guard emits three labels.** `--controversial-policy` (default
+  `strict`) decides how Controversial folds into the binary decision; all
+  three logits are written to the predictions CSV so the choice can be
+  revisited without re-running.
 
 ## Template provenance
 
-Both prompt templates are transcribed from the model's own `chat_template` — the GGUF
-metadata for Llama Guard 3, `tokenizer_config.json` for Qwen3Guard — not from prose docs.
-This matters because Gate A asks whether prompt formatting explains reported
-quantization-safety effects, and an approximated template would make that untestable.
-
-Each template records its deviations in `models/templates.py`. There is one, common to
-both: we score the token after the prompt rather than generating, so a fixed continuation
-is appended to put the scoring position exactly on the label. Everything before that point
-is byte-identical to `apply_chat_template`.
-
-**Any predictions collected before this correction are not comparable.** The Llama Guard
-template was missing category S14 (Code Interpreter Abuse) and the Qwen template was a
-guess that omitted the safety-policy block and the empty `<think>` block. Both fingerprints
-changed; `template_fingerprint` in every prediction file records which was used.
+Both prompt templates are transcribed from the model's own `chat_template` —
+GGUF metadata for Llama Guard 3, `tokenizer_config.json` for Qwen3Guard — not
+from prose docs. Each records its deviations in `models/templates.py`. There
+is one, common to both: we score the token after the prompt rather than
+generating, so a fixed continuation is appended to put the scoring position
+exactly on the label.

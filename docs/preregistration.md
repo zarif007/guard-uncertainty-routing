@@ -1,145 +1,119 @@
 # Pre-registration: which paper each outcome licenses
 
-Written before any predictions were collected. `results/` was empty, and
-`scripts/verify_gates.py` passed, when this file was committed.
+Written before any predictions were collected for this study. `results/` was
+empty and `scripts/verify_selective.py` passed when this file was committed;
+the git history is the proof.
 
-**Amendment, 2026-09-26.** Two changes, both made while `results/predictions/`
-was still empty — verifiable in the git history, which is the only thing that
-makes an amendment to a pre-registration meaningful. Neither changes a
-threshold, a tolerance or a test; they add outcomes the original table could
-not express.
-
-1. Gate C now reports the *direction* of a rejection. The test compared
-   `abs(auroc_delta)` against the tolerance, so a ladder whose low rungs
-   discriminate **better** returned `H3_REJECTED` — mapped below to
-   "capability degradation". The strongest result this project could obtain
-   would have been recorded as its opposite. `verify_gates.py` case 2b is the
-   mirror of case 2 and fails under the unsigned rule.
-2. `peak_improvement` — already implemented, already in
-   `claims_to_evidence.csv`, but not in the decision table — is named here as
-   Gate P. It is the registered test for the premise the research plan opens
-   with, and Gate A does not test it: a curve can reverse without any rung
-   beating FP16, and a rung can beat FP16 on a monotone curve.
-
-Two hypotheses are live, and they predict **different shapes of the same
-curve**:
-
-- **N — non-monotonicity.** Safety is not a monotone function of precision.
-  The curve rises and falls; some middle rung beats both its neighbours.
-- **D — operating point drift.** Lower precision moves where the guard draws
-  its line. The guard flags more of everything, so the safety curve climbs
-  *smoothly* as bits fall, and the false positive rate climbs with it.
-
-If D is the mechanism, the curve is usually **monotone**, which is evidence
-*against* N. They are not two descriptions of one finding, and whichever the
-data supports has to be the one chosen in advance.
-
-This file fixes that choice. Nothing below may be edited after the first
-prediction file is written; the git history is the proof.
+This supersedes `archive_preregistration_quantization.md`, which belongs to the
+study this repo used to be. That document is kept unedited: a pre-registration
+whose history can be rewritten is worth nothing, and the same applies to one
+that gets quietly replaced.
 
 ---
 
-## The umbrella claim
+## The question
 
-Both N and D are instances of one broader claim:
+A guard classifies every message and gets some wrong. A human reviewer can
+check a fraction of them. An *uncertainty signal* decides which fraction.
 
-> A fixed-threshold safety metric is not a reliable function of model
-> precision. It moves for reasons that are not changes in the guard's ability
-> to tell harmful from harmless.
+> **When a guard's native confidence is insufficient to rank its own errors,
+> can an alternative uncertainty signal recover useful error ranking at the
+> same human-review budget?**
 
-This is falsifiable, and the outcome that falsifies it is concrete: Gate C
-returning `H3_REJECTED` together with Gate D returning `RESIDUAL_GAP` would
-mean quantization genuinely degrades the guard and the metrics correctly
-report it. That is the honest alternative, and it is the third paper below.
+## What is already settled, and by whom
+
+Safety-Flag (arXiv 2609.19072) put seven safety benchmarks into one
+flag/do-not-flag protocol across six general-purpose models and four dedicated
+guards, and reported that **confidence-based abstention lowers selective risk
+for every model tested**, with gains depending on how well confidence ranks
+errors. It also found that fitting one temperature per model reduces
+calibration error substantially *without changing predicted labels or
+confidence ordering*.
+
+Two consequences, both binding on this study:
+
+1. **The baseline is native confidence, not random.** "Beats random" was the
+   right bar before Safety-Flag. It is now a sanity check (Gate S1), and a
+   failure there means our pipeline is broken, not that we found something.
+2. **Temperature scaling is not a treatment.** It cannot reorder a signal, so
+   it is used only to construct the baseline the way Safety-Flag constructs
+   it. Any claim that recalibration improved *routing* is ruled out in
+   advance, by algebra: `sigmoid(m/T) >= 0.5` exactly when `m >= 0`, for every
+   `T > 0`.
 
 ---
 
 ## The decision table
 
-Gate C is the hinge. Read it first, then Gate A, then Gate D.
+Gate S3 is the hinge. Read it first, then S4, then S5.
 
-| Gate C | Gate A | Paper | Headline |
+| S3 | S4 | Paper | Headline |
 |---|---|---|---|
-| `H3_CONFIRMED` | `PATTERN_SURVIVES` | **1 — Non-monotonic, and artefactual** | Safety is non-monotonic in precision, and the reversal is an operating point artefact rather than a capability change |
-| `H3_CONFIRMED` | `THRESHOLD_SHIFT` | **2 — Not Safer, Just Louder** | Quantization moves the operating point; fixed-threshold safety metrics change while discrimination does not |
-| `H3_CONFIRMED` | `MONOTONIC` | **2b — as above, asymmetric** | Same as 2, but detection and false alarms do not move together; report the asymmetry rather than claiming a clean slide |
-| `H3_CONFIRMED` | `NO_SIGNIFICANT_DIFFERENCES` | **4 — Null result** | Quantization to 3 bits does not measurably change guard behaviour; a deployment finding, and a real one |
-| `H3_REJECTED_DEGRADATION` | any | **3 — Capability degradation** | Discrimination genuinely degrades below N bits; locate the breakpoint on the ladder and report it |
-| `H3_REJECTED_IMPROVEMENT` | any | **5 — Quantization as regularizer** | Lower precision discriminates *better*, not merely louder. The one outcome Gate D cannot repair away, and the strongest result available here |
-| `H3_REJECTED_MIXED` | any | *No single paper* | Pairs differ in both directions, or the two families disagree on direction. Report per family; do not average |
-| `UNDERPOWERED` | any | *No paper yet* | Scale to Tier A and re-gate. This is the only condition authorising data scaling |
+| `ALTERNATIVE_BEATS_NATIVE` | `INDEPENDENT` | **1 — Behavioural uncertainty** | Signals that do not read the confidence score rank guard errors better than the score does. The strongest available result |
+| `ALTERNATIVE_BEATS_NATIVE` | `REDUNDANT_WITH_MARGIN` | **2 — The squashing tax** | The gain is real but free: it is recoverable from the raw margin, so it is a property of the score transform, not of behaviour. Change one line, do not buy the extra inference |
+| `NATIVE_IS_BEST` | any | **3 — A bounded negative** | Native confidence is already near the practical ceiling for routing review. The expensive alternatives are not worth their cost, and we say how expensive they were |
+| `NOT_EVALUABLE` | any | *No paper yet* | Too few errors to rank, or no alternative signal computed. Scale the sample; this is the only condition authorising it |
 
-### Gate P — does any rung actually beat full precision?
+### Gate S2, reported alongside and never instead
 
-Reported alongside, never instead of, the table above. Gate P asks whether the
-best quantized rung exceeds **its own family's** FP16 on safety rate by a
-margin whose paired McNemar test on the harmful prompts survives Holm
-correction.
+S2 asks whether the raw logit margin beats the probability. It is free to test
+and free to act on.
 
-| Gate P | Reading |
+| S2 | Reading |
 |---|---|
-| `IMPROVEMENT_CONFIRMED` | A quantized rung is measurably safer than FP16. **What this licenses depends entirely on Gate C and Gate D** — see below. |
-| `IMPROVEMENT_NOT_SIGNIFICANT` | A rung leads, but not beyond noise on this prompt set |
-| `NO_IMPROVEMENT` | No rung beats FP16 |
+| `MARGIN_BETTER` | Every downstream system should rank on the margin. A one-line change with a measurable benefit |
+| `MARGIN_SOMETIMES_BETTER` | Model-dependent; report per model, do not average |
+| `NO_DIFFERENCE` | The sigmoid is not destroying usable resolution on this prompt set |
 
-`IMPROVEMENT_CONFIRMED` on its own does **not** license "quantization makes
-guards safer". Three readings, fixed now:
+**S2 passing changes how S3 must be read.** If the margin already beats native
+confidence, then the honest baseline for an expensive signal is the *margin*,
+not native confidence — otherwise an expensive signal takes credit for a free
+one's gain. Gate S4 exists to catch exactly this.
 
-- With `H3_CONFIRMED` and Gate D `REPAIRED` → the gain is real but **free**:
-  it is reproducible by moving FP16's threshold, so it is a property of the
-  operating point, not of quantization. Claim: *quantization is an
-  uncontrolled threshold knob that happened to move in the safe direction.*
-- With `H3_CONFIRMED` and Gate D `RESIDUAL_GAP` → the gain is real and not
-  fully recoverable by thresholding. Report the residual and hand it to the
-  mechanism phases.
-- With `H3_REJECTED_IMPROVEMENT` → the gain is a discrimination gain. This,
-  and only this, licenses the unqualified claim.
+### Gate S5 — does the kind of guard decide it?
 
-Saturation applies to Gate P exactly as it applies to Gate A: a guard at
-~99% on every rung cannot produce a significant improvement whatever is true,
-and the finding in that case is a harder prompt set.
-
----
-
-Gate D refines whichever paper is selected, and never changes which one:
-
-| Gate D | Adds |
+| S5 | Reading |
 |---|---|
-| `REPAIRED` | The fix is free: recalibrate at matched FPR. No retraining, no extra memory. This is the deployment recommendation. |
-| `RESIDUAL_GAP` | A difference survives recalibration. That residual — not the raw gap — becomes the target of the mechanism phases (6 and 7). |
-
-Families are evaluated separately and each gate reports `replicated`. If the
-two architectures disagree, that is stated in the abstract, not averaged away.
+| `KIND_MATTERS` | Generative and encoder guards differ systematically in whether their confidence ranks errors. This is an architectural finding and goes in the abstract |
+| `KIND_DOES_NOT_MATTER` | Self-knowledge is not determined by how the score is produced. Also worth stating, because it is not the expected result |
 
 ---
 
 ## Commitments
 
-1. **Paper 2 is the prior.** Drift predicts a monotone curve, so `THRESHOLD_SHIFT`
-   is the most likely outcome. Paper 1 is the stronger result and the less
-   likely one. Neither expectation changes how any gate is read.
+1. **The bar is native confidence.** No result is reported against a random
+   baseline alone. Safety-Flag established that floor; clearing it again is
+   not a contribution.
 
-2. **A reversal counts only if it is significant.** Non-monotonicity is
-   licensed by `PATTERN_SURVIVES`, which requires a reversal in the safety
-   curve whose paired McNemar test on the harmful prompts survives Holm
-   correction. A curve that merely fails to be strictly monotonic is not a
-   finding — `verify_gates.py` case 6 produces two or three such wiggles per
-   run from sampling noise alone.
+2. **A win must be material, not merely significant.** A signal counts as
+   better only if it improves AURC by at least 0.01 *and* survives Holm
+   correction across every signal tested. On a large enough sample a 0.001
+   gap is significant and irrelevant.
 
-3. **Saturation is reported, not interpreted.** If the safety rate sits near
-   its ceiling at every rung, no reversal can reach significance whatever the
-   models are doing. In that case the result is "this prompt set cannot answer
-   the question", not "the pattern is absent", and the finding is a harder
-   prompt set — not a weaker claim.
+3. **Testing five signals and reporting the best one is forbidden.** All
+   signals enter the correction together. This is why the correction is
+   applied across signals and models jointly in `gate_s3`.
 
-4. **Paper 4 gets written.** A null result is an outcome, not a failure, and
-   "quantize the guard freely" is useful to a practitioner.
+4. **Polarization is measured, not assumed.** An industry benchmark reports
+   99.8% of scores pinned at the extremes for some guards. That is motivation.
+   `evaluation/score_range.py` runs on our own models first and the verdict is
+   reported whatever it says. Safety-Flag in fact found dedicated guards
+   *better* calibrated than general-purpose models, so the assumption could
+   easily be wrong.
 
-5. **No claim is written that `claims_to_evidence.csv` has not marked
+5. **`PIN_EPS` is a choice, not a measurement.** The polarization threshold in
+   `score_range.py` flags any margin beyond about 6.9 as pinned. That is far
+   inside the range where ranking information still exists. It is a screening
+   heuristic and it never decides a gate.
+
+6. **The negative result gets written.** "Native confidence is already near
+   the ceiling, and here is what the alternatives cost" is a useful finding
+   and closes a question people would otherwise keep guessing about.
+
+7. **No claim is written that `claims_to_evidence.csv` has not marked
    `LICENSED`.**
 
-6. **A safety-rate gain is not a safety gain until Gate C and Gate D say
-   which kind it is.** Gate P confirming an improvement over FP16 is the
-   beginning of the analysis, not the result. The three readings above are
-   fixed before collection precisely because the temptation to read the first
-   one as the third is the failure mode this project is about.
+8. **Perturbation quality is a threat, not a detail.** A paraphrase that
+   changes meaning produces instability that is not uncertainty. Variants
+   failing the semantics-preserved check are dropped before the signal is
+   computed, and the drop rate is reported.

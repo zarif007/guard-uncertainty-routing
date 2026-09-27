@@ -7,43 +7,47 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from evaluation.hardware import detect_backend, env_fingerprint, fingerprint_hash
+from models.llm_loader import DEFAULT_WEIGHTS_DIR
 from models.registry import expand_many, get_config, sort_keys, total_disk_gb
 
 PHASES = {
-    "0": {
-        "name": "Validity",
-        "models": ["bit-ladder"],
-        "datasets": ["harmbench", "xstest"],
-        "gate": "A: does the non-monotonic pattern survive the official template?",
+    "1": {
+        "name": "Free signals",
+        "models": ["llama-guard-3-8b:fp16"],
+        "datasets": ["xstest", "harmbench"],
+        "gate": "S1, S2: is there a signal, and does the margin beat the probability?",
     },
     "2": {
-        "name": "Threshold-free evaluation",
-        "models": ["bit-ladder"],
-        "datasets": ["harmbench", "xstest"],
-        "gate": "C: max pairwise AUROC gap < 0.02 with overlapping CIs -> H3",
+        "name": "Perturbation",
+        "models": ["llama-guard-3-8b:fp16"],
+        "datasets": ["xstest"],
+        "gate": "S4: does instability add anything beyond the margin? "
+                "(run scripts/perturb.py, then analyze)",
+    },
+    "3": {
+        "name": "Full panel",
+        "models": ["guard-panel"],
+        "datasets": ["toxicchat", "xstest", "harmbench",
+                     "wildguardtest", "openai_moderation"],
+        "gate": "S3, S5: does anything beat native confidence, "
+                "and does guard kind decide it?",
     },
     "4": {
-        "name": "Replication and scale",
-        "models": ["all-families-ladder"],
-        "datasets": ["harmbench", "xstest", "toxicchat", "wildguardtest", "openai_moderation"],
-        "gate": "does the effect replicate across architectures and realistic traffic?",
+        "name": "Precision ladder",
+        "models": ["precision-ladder"],
+        "datasets": ["xstest", "harmbench"],
+        "gate": "signal 5: cross-precision agreement as an uncertainty signal",
     },
-    "5": {
-        "name": "Quantization algorithm axis",
-        "models": ["algorithm-4bit", "algorithm-3bit"],
-        "datasets": ["harmbench", "xstest"],
-        "gate": "do same-bit-width algorithms diverge? if so bit width is the wrong variable",
-    },
-    # Phase 8 (adversarial, multilingual, response-level extensions) is gone
-    # with the Tier B-F dataset specs it depended on.  Those asked different
-    # questions from the four gates and none of them ran; the git history has
-    # both the phase and its datasets if the work is picked up.
 }
 
 
 def disk_report(keys):
     total = total_disk_gb(keys)
-    free = shutil.disk_usage(".").free / 1024**3
+    # Probe the filesystem the weights actually land on.  On a pod the repo
+    # sits on the ephemeral container disk and MODEL_WEIGHTS_DIR points at the
+    # volume, so probing "." measured the wrong device entirely.
+    probe = DEFAULT_WEIGHTS_DIR if os.path.isdir(DEFAULT_WEIGHTS_DIR) else "."
+    free = shutil.disk_usage(probe).free / 1024**3
     print(f"Model disk required: {total:.1f} GB   free: {free:.1f} GB")
     if total > free * 0.85:
         print("WARNING: not enough headroom. Use --evict to delete each model after scoring.")
@@ -52,8 +56,14 @@ def disk_report(keys):
 
 def evict(key):
     config = get_config(key)
-    root = "models/weights"
+    # Walk the configured weights directory, not a hardcoded relative path.
+    # setup_runpod.sh points MODEL_WEIGHTS_DIR at the persistent volume, so
+    # the old literal found nothing and eviction silently did nothing --
+    # exactly when the disk was filling up.
+    root = DEFAULT_WEIGHTS_DIR
     removed = 0
+    if not config["filename"]:
+        return  # transformers-backed guard; nothing to evict
     for dirpath, _, filenames in os.walk(root):
         for fn in filenames:
             if fn == config["filename"]:

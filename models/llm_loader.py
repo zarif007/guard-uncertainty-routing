@@ -37,8 +37,7 @@ CONTROVERSIAL_POLICIES = ("strict", "lenient", "binary")
 # called with an explicit cache_dir, which takes precedence over HF_HOME.
 DEFAULT_WEIGHTS_DIR = os.environ.get("MODEL_WEIGHTS_DIR") or os.path.join("models", "weights")
 
-# Quantizations the upstream GGUF repo never published are built locally by
-# scripts/build_missing_quants.py and land here.  Checking this directory
+# Locally built GGUF variants land here.  Checking this directory
 # first means a built variant is used through its normal registry key, so
 # run_phase.py and the analysis need no special casing.
 BUILT_DIR = os.path.join(DEFAULT_WEIGHTS_DIR, "built")

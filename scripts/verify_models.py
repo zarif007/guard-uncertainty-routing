@@ -17,8 +17,8 @@ So each model is loaded and scored on a small labelled sample, and checked for:
 
 Run it once per machine before committing GPU hours to a sweep.
 
-    python scripts/verify_models.py --models bit-ladder
-    python scripts/verify_models.py --models all-families-ladder --local-only
+    python scripts/verify_models.py --models guard-panel
+    python scripts/verify_models.py --models precision-ladder --local-only
 """
 
 import argparse
@@ -97,7 +97,7 @@ def check_model(key, df, n_gpu_layers, n_threads, controversial_policy):
 
 def main():
     parser = argparse.ArgumentParser(description="Verify every model in a group actually scores")
-    parser.add_argument("--models", nargs="+", default=["all-families-ladder"])
+    parser.add_argument("--models", nargs="+", default=["guard-panel"])
     parser.add_argument("--dataset", default="xstest")
     parser.add_argument("--n", type=int, default=24,
                         help="prompts per model; enough for agreement and a rough AUROC")

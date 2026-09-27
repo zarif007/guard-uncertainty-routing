@@ -9,7 +9,7 @@
 set -e
 
 VOLUME=${VOLUME:-/workspace}
-REQUIRED_GB=${REQUIRED_GB:-200}
+REQUIRED_GB=${REQUIRED_GB:-100}
 
 echo "=========================================================="
 echo " RunPod bootstrap"
@@ -22,13 +22,13 @@ if [ ! -d "$VOLUME" ]; then
 fi
 
 # Model weights must live on the persistent volume: container disk is wiped
-# when the pod stops, and the full model set is ~145 GB of GGUF plus ~32 GB of
-# safetensors for the layer sweep.
+# when the pod stops, and the guard panel is ~35 GB of GGUF and the
+# optional precision ladder another ~46 GB.
 export HF_HOME="$VOLUME/hf"
 export HF_HUB_ENABLE_HF_TRANSFER=1
 # GGUF weights are fetched with an explicit cache_dir, which takes precedence
-# over HF_HOME, so they need their own variable or ~145 GB lands on the
-# container disk and is lost when the pod stops.
+# over HF_HOME, so they need their own variable or the whole download lands
+# on the container disk and is lost when the pod stops.
 export MODEL_WEIGHTS_DIR="$VOLUME/weights"
 mkdir -p "$HF_HOME" "$MODEL_WEIGHTS_DIR"
 {
@@ -39,7 +39,7 @@ mkdir -p "$HF_HOME" "$MODEL_WEIGHTS_DIR"
 
 FREE_GB=$(df -BG "$VOLUME" | awk 'NR==2 {gsub("G","",$4); print $4}')
 echo ""
-echo "Free space on $VOLUME: ${FREE_GB} GB (need ~${REQUIRED_GB} GB for the full set)"
+echo "Free space on $VOLUME: ${FREE_GB} GB (guard panel ~35 GB, + ladder ~46 GB)"
 if [ "$FREE_GB" -lt "$REQUIRED_GB" ]; then
     echo "  WARNING: tight. Use --evict on run_phase.py, or run fewer models per pass."
 fi
@@ -55,11 +55,11 @@ echo "[2/4] Inference engine"
 bash scripts/install_engine.sh
 
 echo ""
-echo "[3/4] PyTorch dependencies (Phase 6 layer sweep only)"
-if [ -n "$WITH_MECHANISM" ]; then
-    pip install -q -r requirements-mechanism.txt
+echo "[3/4] PyTorch dependencies (encoder guards only)"
+if [ -n "$WITH_ENCODER" ]; then
+    pip install -q -r requirements-encoder.txt
 else
-    echo "  skipped (set WITH_MECHANISM=1 to install torch + transformers)"
+    echo "  skipped (set WITH_ENCODER=1 to install torch + transformers)"
 fi
 
 echo ""
@@ -79,12 +79,13 @@ echo ""
 echo "=========================================================="
 echo " Ready."
 echo ""
-echo " Gated models (Phase 6 only) need a token:"
+echo " Gated guards and datasets need a token:"
 echo "   huggingface-cli login      # or: export HF_TOKEN=hf_..."
 echo ""
 echo " Then:"
-echo "   python scripts/prefetch_models.py --models bit-ladder"
+echo "   python scripts/prefetch_models.py --models guard-panel"
 echo "   python scripts/download_datasets.py --core"
-echo "   python scripts/verify_scorer.py --model q4 --dataset xstest --n 40"
-echo "   MODELS=bit-ladder bash scripts/run_everything.sh"
+echo "   python scripts/verify_selective.py"
+echo "   python scripts/verify_scorer.py --model reference --dataset xstest --n 40"
+echo "   MODELS=guard-panel bash scripts/run_everything.sh"
 echo "=========================================================="
