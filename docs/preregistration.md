@@ -156,7 +156,18 @@ one's gain. Gate S4 exists to catch exactly this.
    0.5% fewer bad decisions does not justify rebuilding a pipeline, and a
    difference that small will not survive a change of prompt set.
 
-10. **Perturbation quality is a threat, not a detail.** A paraphrase that
-   changes meaning produces instability that is not uncertainty. Variants
-   failing the semantics-preserved check are dropped before the signal is
-   computed, and the drop rate is reported.
+10. **Perturbation quality is a threat, not a detail.** Two ways it fails,
+   both checked before any inference:
+   - *Too strong* — a reworded prompt that changes meaning produces
+     instability that is not uncertainty. Variants failing the
+     semantics-preserved check are dropped, and the drop rate is reported.
+   - *Too weak* — rewordings that differ by a space cannot flip any verdict,
+     so the signal reads 1.0 everywhere and carries nothing. `perturb.py`
+     measures mean edit distance across the family and refuses to score
+     below 0.05 without `--force`. The first version of the family failed
+     this at 0.01 and would have produced a silently empty signal.
+
+11. **An encoder's task alignment is verified, not assumed.** A toxicity head
+   scores a polite request for dangerous information as safe. Using one would
+   make Gate S5 report an artefact of asking the wrong question, so
+   `check_encoder_alignment.py` gates every comparison that uses an encoder.

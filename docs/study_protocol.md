@@ -237,7 +237,9 @@ Planned: Llama-Guard-3-8B (the reference), one more generative guard,
 Llama-Guard-3-1B for the size question, one encoder classifier.
 
 **Caution:** many encoder classifiers score *toxicity*, which is not the same
-label as *harmful request*. Verify the labels line up first.
+question as *harmful request*. A polite request for dangerous information
+scores low on toxicity and high on harm. `scripts/check_encoder_alignment.py`
+checks this and refuses quietly-wrong answers.
 
 ### Datasets
 

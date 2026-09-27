@@ -174,8 +174,16 @@ Groups: `guard-panel` (default, 4 guards, 35 GB), `precision-ladder`
 **Model ids are best-effort.** `preflight.py` checks each against the hub and
 names what is actually published. The encoder entry in particular needs
 verifying — many moderation encoders score *toxicity*, which is not the same
-label as *harmful request*. Run `scripts/label_audit.py` before trusting any
-comparison that uses it.
+question as *harmful request*. Run this before any comparison that uses it:
+
+```bash
+python scripts/check_encoder_alignment.py --model encoder-moderation:hf
+```
+
+It scores a labelled probe set and reports whether the encoder tracks our
+label at all, plus the harmful prompts it scored lowest — if those are all
+polite requests for dangerous information, it is a toxicity head and the
+wrong instrument.
 
 ---
 
@@ -257,12 +265,13 @@ evaluation/
   disagreement.py    agreement matrix, flips
   hardware.py        backend detection, GPU metadata
 scripts/
-  perturb.py         generate and validate meaning-preserving rewordings
+  perturb.py         meaning-preserving rewordings, with a diversity guard
+  check_encoder_alignment.py  is this encoder answering OUR question?
   verify_selective.py  gates vs synthetic data of known truth
   run_model.py       score one guard on one dataset
   run_phase.py       orchestrate a phase
   preflight.py       environment, models, datasets, templates
-  label_audit.py     label-noise and task-alignment audit
+  label_audit.py     dataset label-noise annotation sheet
 ```
 
 ---
