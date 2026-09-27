@@ -62,7 +62,8 @@ def margin_confidence(df: pd.DataFrame) -> pd.Series:
 
 
 def stability_confidence(perturbed: pd.DataFrame,
-                         id_column: str = "prompt_id") -> pd.Series:
+                         id_column: str = "prompt_id",
+                         model_column: str = "model") -> pd.Series:
     """
     Agreement rate across rewordings of the same message.
 
@@ -81,7 +82,13 @@ def stability_confidence(perturbed: pd.DataFrame,
         verdicts = group["prediction"].value_counts()
         return verdicts.max() / verdicts.sum()
 
-    return perturbed.groupby(id_column).apply(modal_agreement, include_groups=False)
+    # Group by model AND prompt.  A perturbation file covering several guards
+    # pools their variants under one prompt_id otherwise, which both doubles
+    # the apparent variant count and averages one guard's stability into
+    # another's -- silently, and in a direction that flatters the weaker guard.
+    keys = ([model_column, id_column] if model_column in perturbed.columns
+            else [id_column])
+    return perturbed.groupby(keys).apply(modal_agreement, include_groups=False)
 
 
 def agreement_confidence(df: pd.DataFrame, members: Sequence[str],
@@ -135,7 +142,12 @@ def attach_signals(
     out[MARGIN] = margin_confidence(out)
 
     if perturbed is not None and not perturbed.empty:
-        out[STABILITY] = out["prompt_id"].map(stability_confidence(perturbed))
+        stability = stability_confidence(perturbed)
+        if isinstance(stability.index, pd.MultiIndex):
+            index = pd.MultiIndex.from_arrays([out["model"], out["prompt_id"]])
+            out[STABILITY] = stability.reindex(index).to_numpy()
+        else:
+            out[STABILITY] = out["prompt_id"].map(stability)
     if model_members:
         out[MODEL_AGREE] = out["prompt_id"].map(
             agreement_confidence(df, model_members))

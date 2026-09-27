@@ -16,7 +16,10 @@ import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from evaluation.gates import gate_s1, gate_s2, gate_s3, gate_s4, gate_s5
+from evaluation.allocation import allocation_table
+from evaluation.gates import (
+    gate_a1, gate_a2, gate_s1, gate_s2, gate_s3, gate_s4, gate_s5,
+)
 from evaluation.signals import MARGIN, NATIVE, STABILITY
 
 PASS, FAIL = "  ok  ", " FAIL "
@@ -24,7 +27,8 @@ RESULTS = []
 
 
 def synth(model, n=800, error_rate=0.18, seed=0, *, saturated=False,
-          stability_mode=None, margin_tracks_errors=True):
+          stability_mode=None, margin_tracks_errors=True,
+          latency=0.05):
     """
     One model's predictions with a known error structure.
 
@@ -60,6 +64,7 @@ def synth(model, n=800, error_rate=0.18, seed=0, *, saturated=False,
         "prompt_id": [f"p_{i}" for i in range(n)],
         "ground_truth": gt, "prediction": pred, "dataset": "synthetic",
         "model": model, "p_unsafe": p, "margin": margin,
+        "latency_sec": latency,
         NATIVE: np.abs(p - 0.5), MARGIN: np.abs(margin),
     })
 
@@ -138,6 +143,72 @@ def main():
     ], ignore_index=True)
     check("both kinds well separated -> kind does not matter",
           gate_s5(same)["status"], "KIND_DOES_NOT_MATTER")
+
+    print("\n--- A1/A2: how should the oversight budget be spent? ---")
+
+    def priced(frames, perturb_variants=6):
+        """Predictions plus a matching perturbation file, ready to price."""
+        df = pd.concat(frames, ignore_index=True)
+        rows = []
+        rng = np.random.default_rng(99)
+        for model, sub in df.groupby("model"):
+            err = (sub["ground_truth"].to_numpy() != sub["prediction"].to_numpy())
+            for pid, is_err in zip(sub["prompt_id"], err):
+                flip = 0.45 if is_err else 0.03
+                for v in range(perturb_variants):
+                    rows.append({"prompt_id": pid, "model": model,
+                                 "variant": f"v{v}", "semantics_preserved": True,
+                                 "prediction": "unsafe" if rng.random() < flip else "safe"})
+        perturbed = pd.DataFrame(rows)
+        df[STABILITY] = None
+        from evaluation.signals import stability_confidence
+        stab = stability_confidence(perturbed)
+        idx = pd.MultiIndex.from_arrays([df["model"], df["prompt_id"]])
+        df[STABILITY] = stab.reindex(idx).to_numpy()
+        return allocation_table(
+            df, sorted(df["model"].unique()), [NATIVE, MARGIN, STABILITY],
+            perturbed=perturbed, cost_basis="latency")
+
+    # A big guard that is confidently wrong, against a small one whose errors
+    # are nearly as rare and whose margins carry information.  The small guard
+    # should win outright: fewer bad decisions AND a sixth of the compute.
+    cheap_wins = priced([
+        synth("llama-guard-3-8b:fp16", seed=20, error_rate=0.18,
+              saturated=True, latency=0.090),
+        synth("llama-guard-3-1b:fp16", seed=21, error_rate=0.10,
+              saturated=False, latency=0.015),
+    ])
+    check("cheap guard with fewer errors -> cheaper guard wins",
+          gate_a1(cheap_wins, budget=0.05)["status"], "CHEAPER_GUARD_WINS")
+
+    # The same big guard against a small one that is simply much worse.  No
+    # amount of good selection should rescue it, and A1 must say so.
+    default_wins = priced([
+        synth("llama-guard-3-8b:fp16", seed=22, error_rate=0.08,
+              saturated=False, latency=0.090),
+        synth("llama-guard-3-1b:fp16", seed=23, error_rate=0.35,
+              saturated=False, latency=0.015),
+    ])
+    check("small guard far worse -> default is best",
+          gate_a1(default_wins, budget=0.05)["status"], "DEFAULT_IS_BEST")
+
+    # A crossover needs the two policies to be good at different things: one
+    # guard with few errors it cannot identify, and one with more errors it
+    # can.  At zero budget the first wins on raw accuracy; as the reviewer
+    # gets hours, the second converts them into caught errors and overtakes.
+    crossing = priced([
+        synth("llama-guard-3-8b:fp16", seed=24, error_rate=0.12,
+              saturated=True, margin_tracks_errors=False, latency=0.090),
+        synth("llama-guard-3-1b:fp16", seed=25, error_rate=0.16,
+              saturated=False, latency=0.015),
+    ])
+    a2 = gate_a2(crossing)
+    check("guards good at different things -> budget dependent",
+          a2["status"], "BUDGET_DEPENDENT")
+
+    # ...and the converse must be reachable, or A2 is not a test.
+    check("one dominant policy -> one policy wins",
+          gate_a2(cheap_wins)["status"], "ONE_POLICY_WINS")
 
     passed = sum(RESULTS)
     print("\n" + "=" * 84)

@@ -13,12 +13,25 @@ that gets quietly replaced.
 
 ## The question
 
-A guard classifies every message and gets some wrong. A human reviewer can
-check a fraction of them. An *uncertainty signal* decides which fraction.
+A deployment has a guard, a compute budget, and a reviewer with limited hours.
+Every message gets a decision one way or another.
 
-> **When a guard's native confidence is insufficient to rank its own errors,
-> can an alternative uncertainty signal recover useful error ranking at the
-> same human-review budget?**
+> **How should a fixed oversight budget be spent — on a better guard, on
+> better selection of what the human sees, or on more review?**
+
+A *policy* is a (guard, signal) pair. Every policy has a compute price and a
+human price, and both buy the same thing: fewer bad decisions reaching
+production.
+
+The objective is **residual risk** — errors that survive review — not errors
+caught. Errors caught flatters a weak guard: one making 200 mistakes and
+catching 160 looks better than one making 50 and catching 30, while shipping
+four times as many. A weak guard must make up its deficit through selection
+before it counts as a win.
+
+Compute and human attention are not in the same units, and any exchange rate
+we pick is arguable and dates badly. Nothing in this study converts one into
+the other. Policies are compared on a two-dimensional frontier.
 
 ## What is already settled, and by whom
 
@@ -45,14 +58,30 @@ Two consequences, both binding on this study:
 
 ## The decision table
 
-Gate S3 is the hinge. Read it first, then S4, then S5.
+Gate A1 is the hinge. Read it first, then A2. The signal gates (S1-S5) are
+**supporting evidence**: they explain *why* a policy wins, and a signal can
+win S3 while losing A1 if the compute it costs would have bought a better
+guard instead. That dissociation is the point of running both.
+
+| A1 | A2 | Paper | Headline |
+|---|---|---|---|
+| `CHEAPER_GUARD_WINS` | any | **1 — Not a better guard** | At matched compute, a smaller guard with better selection ships fewer bad decisions than the large guard everyone deploys. The strongest available result |
+| `BETTER_SELECTION_WINS` | any | **2 — Spend on selection** | Same guard, better routing, same compute. A deployment change with no model change |
+| `DEFAULT_IS_BEST` | `BUDGET_DEPENDENT` | **3 — It depends** | The default holds at the budget most deployments run, but not everywhere. The crossover point is the result |
+| `DEFAULT_IS_BEST` | `ONE_POLICY_WINS` | **4 — A bounded negative** | The default is already the right use of the budget. We say precisely what the alternatives cost and what they bought |
+| `NOT_EVALUABLE` | any | *No paper yet* | Too few errors, or no priced alternative. Scale the sample |
+
+### Supporting gates: S1-S5
+
+These are the mechanism, not the result. They answer "why did that policy
+win?" and they are reported alongside A1, never instead of it.
 
 | S3 | S4 | Paper | Headline |
 |---|---|---|---|
-| `ALTERNATIVE_BEATS_NATIVE` | `INDEPENDENT` | **1 — Behavioural uncertainty** | Signals that do not read the confidence score rank guard errors better than the score does. The strongest available result |
-| `ALTERNATIVE_BEATS_NATIVE` | `REDUNDANT_WITH_MARGIN` | **2 — The squashing tax** | The gain is real but free: it is recoverable from the raw margin, so it is a property of the score transform, not of behaviour. Change one line, do not buy the extra inference |
-| `NATIVE_IS_BEST` | any | **3 — A bounded negative** | Native confidence is already near the practical ceiling for routing review. The expensive alternatives are not worth their cost, and we say how expensive they were |
-| `NOT_EVALUABLE` | any | *No paper yet* | Too few errors to rank, or no alternative signal computed. Scale the sample; this is the only condition authorising it |
+| `ALTERNATIVE_BEATS_NATIVE` | `INDEPENDENT` | A behavioural signal carries error information the confidence score cannot express. If A1 also passes, this is *why* |
+| `ALTERNATIVE_BEATS_NATIVE` | `REDUNDANT_WITH_MARGIN` | The gain is real but free — recoverable from the raw margin. A property of the score transform, not of behaviour. Change one line; do not buy the extra inference |
+| `NATIVE_IS_BEST` | any | Native confidence is near the ceiling *as a signal*. A1 can still find a cheaper guard that wins on compute |
+| `NOT_EVALUABLE` | any | Too few errors to rank, or no alternative computed |
 
 ### Gate S2, reported alongside and never instead
 
@@ -81,9 +110,15 @@ one's gain. Gate S4 exists to catch exactly this.
 
 ## Commitments
 
-1. **The bar is native confidence.** No result is reported against a random
-   baseline alone. Safety-Flag established that floor; clearing it again is
-   not a contribution.
+1. **The bar is native confidence, and the frame is allocation.** No result
+   is reported against a random baseline alone; Safety-Flag established that
+   floor. And no signal result is reported without its compute price, because
+   an unpriced signal cannot be compared against spending that compute on a
+   better guard.
+
+1b. **Residual risk is the objective.** Errors caught, risk reduction and
+   AURC are all reported, but the claim is always about bad decisions that
+   reach production.
 
 2. **A win must be material, not merely significant.** A signal counts as
    better only if it improves AURC by at least 0.01 *and* survives Holm
@@ -113,7 +148,15 @@ one's gain. Gate S4 exists to catch exactly this.
 7. **No claim is written that `claims_to_evidence.csv` has not marked
    `LICENSED`.**
 
-8. **Perturbation quality is a threat, not a detail.** A paraphrase that
+8. **No exchange rate between compute and human time.** The frontier is
+   reported in both units. If a single number is ever needed, the prices used
+   are stated inline and the result is re-reported without them.
+
+9. **A policy must beat the default by 5% relative residual risk.** Shipping
+   0.5% fewer bad decisions does not justify rebuilding a pipeline, and a
+   difference that small will not survive a change of prompt set.
+
+10. **Perturbation quality is a threat, not a detail.** A paraphrase that
    changes meaning produces instability that is not uncertainty. Variants
    failing the semantics-preserved check are dropped before the signal is
    computed, and the drop rate is reported.

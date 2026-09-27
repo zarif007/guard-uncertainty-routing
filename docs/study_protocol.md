@@ -13,34 +13,63 @@ AI chatbots have a filter in front of them called a **guard model**. It reads
 what a user types and decides whether to block it. Guards get things wrong —
 they block harmless messages, and they let harmful ones through.
 
-In a real company, a human reviewer can double-check some of those decisions.
-But only a small slice of them, because people are expensive. So you have to
-choose: **out of 10,000 messages, which 500 does the human look at?**
+A company running one has three things it can spend:
 
-The obvious way to choose is to ask the guard how sure it was, and show the
-human the ones it was least sure about. A 2026 benchmark called **Safety-Flag**
-already tested that. It works — somewhat, and unevenly across models.
+- **money on compute** — run a bigger guard, or run the same guard several
+  times to see whether it keeps changing its mind
+- **reviewer hours** — a person double-checks some of the decisions
+- **nothing** — accept the mistakes
 
-**Our question: is there a better way to choose?**
+These compete for the same budget, and nobody has worked out how to split it.
 
-A guard's confidence score is not the only clue that a decision is shaky. You
-could reword the message and see whether the verdict flips. You could run
-several guards and see whether they disagree. You could run the same guard at
-different compression levels and see whether it changes its mind. These cost
-more to compute, and nobody has checked whether they are worth it.
+> **Our question: given a fixed oversight budget, how should you spend it?**
 
-So we line up five ways of spotting a shaky decision, give each one the same
-human-review budget, and ask which catches the most of the guard's mistakes.
+That is the whole paper. Everything else is machinery for answering it.
 
-**Either way we get an answer.** If something beats the guard's own confidence,
-that is a practical recommendation people can deploy tomorrow. If nothing
-does, that settles the question — guard confidence is already near the
-practical ceiling, and the expensive alternatives are not worth their cost.
+### What makes it a real question
+
+Take a big guard and a small one. The big one is right more often, but it is
+also expensive and completely sure of itself — including when it is wrong,
+which means it cannot tell you which of its answers to double-check.
+
+The small one is wrong more often. But it is cheap. Cheap enough that you
+could run it six times on slightly reworded versions of the message and see
+whether the answer holds up — and *that* tells you which cases need a human.
+
+For the same money, which one ships fewer bad decisions?
+
+Nobody knows. It is a decision people make every week with no evidence.
+
+### The number that decides it
+
+Not "how accurate is the guard" and not "how many mistakes did the human
+catch". Both of those can flatter a bad setup. What matters is:
+
+> **How many bad decisions reach real users after the human has done what
+> they can?**
+
+We call that **residual risk**, and lower is better. It is the honest number
+because it punishes a weak guard even when its error-spotting is excellent: a
+guard making 200 mistakes and catching 160 still ships more harm than one
+making 50 and catching 30.
+
+### What we can conclude
+
+- **A cheaper guard with smarter checking wins** → the headline is *the
+  cheapest way to catch a guard's mistakes is not a better guard*.
+- **Better checking wins on the same guard** → a deployment change that costs
+  nothing but a config edit.
+- **The expensive default is already right** → also worth publishing. We will
+  have priced the alternatives and shown what they bought, which nobody has.
+- **The answer changes with budget** → then the result is a *rule*, and where
+  it switches over is the finding.
+
+All four are publishable. That is the point of the design.
 
 In one line:
 
-> We are looking for the best way to decide which of a safety filter's
-> decisions a human should double-check.
+> We are working out how a company should split its budget between a smarter
+> safety filter, double-checking it, and paying people to review the results.
 
 ---
 

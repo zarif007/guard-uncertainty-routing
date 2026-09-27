@@ -19,9 +19,18 @@ import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from evaluation.allocation import (
+    DEFAULT_BUDGETS,
+    allocation_table,
+    crossover_report,
+    equal_compute_comparison,
+    pareto_frontier,
+)
 from evaluation.calibration import fit_temperature
 from evaluation.gates import (
     claims_table,
+    gate_a1,
+    gate_a2,
     gate_s1,
     gate_s2,
     gate_s3,
@@ -38,6 +47,7 @@ from evaluation.selective import (
 )
 from evaluation.signals import (
     MARGIN,
+    MODEL_AGREE,
     NATIVE,
     PRECISION_AGREE,
     STABILITY,
@@ -166,13 +176,63 @@ def plot_budget(budgets, out_dir):
     plt.close(fig)
 
 
+def plot_frontier(allocation, budget, out_dir):
+    """Compute against bad decisions shipped.  The paper's main figure."""
+    front = pareto_frontier(allocation, budget)
+    if front.empty:
+        return
+    fig, ax = plt.subplots(figsize=(6.5, 4.5))
+    for (model,), sub in front.groupby(["model"]):
+        ax.scatter(sub["compute_per_decision"], sub["residual_error_rate"],
+                   s=46, label=model.split(":")[0])
+        for _, row in sub.iterrows():
+            ax.annotate(row["signal"].replace("conf_", ""),
+                        (row["compute_per_decision"], row["residual_error_rate"]),
+                        fontsize=6, xytext=(3, 3), textcoords="offset points")
+    edge = front[front["on_frontier"]].sort_values("compute_per_decision")
+    ax.plot(edge["compute_per_decision"], edge["residual_error_rate"],
+            "k--", lw=1, alpha=0.6, label="frontier")
+    ax.set_xscale("log")
+    ax.set_xlabel("compute per decision (guard-inferences x unit cost, log)")
+    ax.set_ylabel("residual error rate (bad decisions shipped)")
+    ax.set_title(f"Oversight frontier at {budget:.0%} human review")
+    ax.legend(fontsize=7)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, "oversight_frontier.png"), dpi=160)
+    plt.close(fig)
+
+
+def plot_crossover(allocation, out_dir):
+    """Does the best policy change with the review budget?"""
+    if allocation.empty:
+        return
+    fig, ax = plt.subplots(figsize=(6.5, 4.5))
+    for (model, signal), sub in allocation.groupby(["model", "signal"]):
+        sub = sub.sort_values("human_budget")
+        ax.plot(sub["human_budget"], sub["residual_error_rate"], marker="o",
+                ms=3, lw=1, label=f"{model.split(':')[0]} / {signal.replace('conf_','')}")
+    ax.set_xlabel("human review budget (fraction of traffic)")
+    ax.set_ylabel("residual error rate (bad decisions shipped)")
+    ax.set_title("Which policy wins depends on the budget")
+    ax.legend(fontsize=6, ncol=2)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, "budget_crossover.png"), dpi=160)
+    plt.close(fig)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Uncertainty-signal analysis")
+    parser = argparse.ArgumentParser(
+        description="Oversight allocation analysis: how to spend the review budget")
     parser.add_argument("--predictions-dir", default="results/predictions")
     parser.add_argument("--perturbed", default="results/predictions/perturbed",
                         help="directory of perturbation runs (signal 3)")
     parser.add_argument("--tables-dir", default="results/tables")
     parser.add_argument("--figures-dir", default="results/figures")
+    parser.add_argument("--headline-budget", type=float, default=0.05,
+                        help="human review budget the headline comparison uses")
+    parser.add_argument("--cost-basis", default="latency",
+                        choices=["latency", "size"],
+                        help="how a guard's per-decision compute is priced")
     parser.add_argument("--temperature", type=float, default=None,
                         help="fixed temperature for the native baseline; "
                              "default fits one per model, as Safety-Flag does")
@@ -240,8 +300,24 @@ def main():
     budgets = budget_report(df, models, signals)
     save(budgets, args.tables_dir, "errors_caught_by_budget")
 
+    # --- the allocation problem: what should a deployment actually do? ---
+    members = {MODEL_AGREE: models, PRECISION_AGREE: ladder_present}
+    allocation = allocation_table(
+        df, models, signals, budgets=DEFAULT_BUDGETS,
+        perturbed=perturbed if not perturbed.empty else None,
+        ensemble_members=members, cost_basis=args.cost_basis)
+    save(allocation, args.tables_dir, "allocation")
+
+    if not allocation.empty:
+        save(equal_compute_comparison(allocation, args.headline_budget),
+             args.tables_dir, "equal_compute_comparison")
+        save(pareto_frontier(allocation, args.headline_budget),
+             args.tables_dir, "oversight_frontier")
+
     alternatives = [s for s in signals if s not in (NATIVE,)]
     verdicts = {
+        "gate_a1": gate_a1(allocation, budget=args.headline_budget),
+        "gate_a2": gate_a2(allocation),
         "gate_s1": gate_s1(df),
         "gate_s2": gate_s2(df),
         "gate_s3": gate_s3(df, signals=[s for s in alternatives if s != MARGIN] or [MARGIN]),
@@ -254,12 +330,17 @@ def main():
 
     plot_risk_coverage(df, models, signals, args.figures_dir)
     plot_budget(budgets, args.figures_dir)
+    if not allocation.empty:
+        plot_frontier(allocation, args.headline_budget, args.figures_dir)
+        plot_crossover(allocation, args.figures_dir)
 
     report = {
         "models": models,
         "datasets": sorted(df["dataset"].unique()),
         "n_rows": len(df),
         "signals": signals,
+        "headline_budget": args.headline_budget,
+        "cost_basis": args.cost_basis,
         "hardware_consistency": hardware,
         "score_range": {k: v for k, v in range_report.items() if k != "table"},
         **verdicts,
@@ -268,13 +349,40 @@ def main():
     with open(os.path.join(args.tables_dir, "gates.json"), "w") as fh:
         json.dump(report, fh, indent=2, default=str)
 
-    print("\n=== GATES ===")
+    print("\n" + "=" * 78)
+    print(f" HOW SHOULD THE OVERSIGHT BUDGET BE SPENT?"
+          f"  (at {args.headline_budget:.0%} human review)")
+    print("=" * 78)
+    a1 = verdicts["gate_a1"]
+    print(f"  A1: {a1['status']:<24} {a1.get('reason','')}")
+    if "default" in a1:
+        d, b = a1["default"], a1["best_alternative"]
+        print(f"      default      {d['model']:<26} + {d['signal']:<20} "
+              f"residual {d['residual_error_rate']:.4f}")
+        print(f"      best rival   {b['model']:<26} + {b['signal']:<20} "
+              f"residual {b['residual_error_rate']:.4f} at {b['compute_ratio']:.2f}x compute")
+    a2 = verdicts["gate_a2"]
+    print(f"  A2: {a2['status']:<24} {a2.get('reason','')}")
+    for budget, w in sorted((a2.get("winners_by_budget") or {}).items()):
+        print(f"      budget {budget:>5.0%} -> {w['model']} + {w['signal']} "
+              f"(residual {w['residual_error_rate']:.4f})")
+
+    if not allocation.empty:
+        print(f"\n=== Policies at {args.headline_budget:.0%} review "
+              f"(residual = bad decisions shipped; lower is better) ===")
+        view = allocation[allocation["human_budget"] == args.headline_budget]
+        cols = ["model", "signal", "residual_error_rate", "baseline_error_rate",
+                "risk_reduction", "inferences_per_decision", "compute_per_decision"]
+        print(view[[c for c in cols if c in view.columns]]
+              .sort_values("residual_error_rate").round(4).to_string(index=False))
+
+    print("\n=== Supporting: which signal ranks errors best? ===")
     for key in ("gate_s1", "gate_s2", "gate_s3", "gate_s4", "gate_s5"):
         v = verdicts[key]
         print(f"  {v['gate']}: {v['status']:<28} {v.get('reason','')}")
 
     if not signals_table.empty:
-        print("\n=== Which signal routes review best? (lower AURC is better) ===")
+        print("\n--- signal detail (lower AURC is better) ---")
         cols = ["model", "dataset", "signal", "aurc", "deferral_efficiency",
                 "tie_fraction", "errors_found_at_5pct", "n_errors"]
         print(signals_table[[c for c in cols if c in signals_table.columns]]

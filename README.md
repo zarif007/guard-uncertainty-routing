@@ -1,10 +1,10 @@
 # Guard Uncertainty Routing
 
-Which of a safety filter's decisions should a human double-check?
+How should a fixed oversight budget be spent?
 
-> **Native confidence is the baseline, not the finding.** A guard's own
-> confidence already beats random deferral. The question is whether anything
-> beats *it*.
+> **The unit of analysis is the deployment, not the model.** A guard, a compute
+> budget, and a reviewer with limited hours. Every message gets a decision one
+> way or another. What is the best way to spend what you have?
 
 Plain-language walkthrough: `docs/study_protocol.md`.
 What each outcome licenses: `docs/preregistration.md`.
@@ -12,17 +12,55 @@ Literature and differentiation: `docs/related_work.md`.
 
 ---
 
-## The question
+## The problem
 
-A guard classifies every message and gets some wrong. A human reviewer has
-capacity for a fraction of them. An **uncertainty signal** decides which
-fraction. We compare five.
+A **policy** is a (guard, signal) pair: which model makes the call, and how the
+uncertain cases get picked out for a human. Every policy has a compute price
+and a human price, and both buy the same thing — fewer bad decisions reaching
+production.
+
+The headline experiment is a head-to-head at **matched compute**:
+
+| | compute | selection |
+|---|---|---|
+| what everyone deploys | large guard | its own confidence (free) |
+| the alternative | small guard | perturbation instability (~6x inference) |
+
+A 1B guard costs roughly a sixth of an 8B one, so for the same money you can
+run the small guard *and* reword every prompt six times to see whether its
+verdict holds. **Which ships fewer bad decisions?** Nobody has measured it.
+
+### The objective: residual risk
+
+Not accuracy, and not errors caught. Both flatter a weak setup. What counts is
+what survives review:
+
+```
+residual_errors = total_errors(guard) - errors_caught(guard, signal, budget)
+```
+
+A guard making 200 mistakes and catching 160 ships more harm than one making
+50 and catching 30. A weak guard has to make up its deficit through selection
+before it counts as a win.
+
+### No exchange rate
+
+Compute and human attention are not denominated in the same thing, and any
+rate we pick is arguable and dates badly. Nothing here converts one into the
+other. Policies are compared on a two-dimensional frontier and the reader
+brings their own prices.
+
+---
+
+## The signals
+
+Instruments for a policy, not the contribution.
 
 | # | Signal | What it reads | Cost |
 |---|---|---|---|
 | 1 | `conf_native` | The guard's probability, distance from the 0.5 cut | free — **the baseline** |
 | 2 | `conf_margin` | The raw logit gap, before the sigmoid squashes it | free |
-| 3 | `conf_stability` | Does the verdict survive rewording the message? | ~k× inference |
+| 3 | `conf_stability` | Does the verdict survive rewording the message? | ~k x inference |
 | 4 | `conf_model_agree` | Do several different guards agree? | +1 run per guard |
 | 5 | `conf_precision_agree` | Does one guard agree with itself across quantizations? | free if the ladder ran |
 
@@ -160,25 +198,36 @@ where the base rate is realistic.
 ## Gates
 
 Criteria are fixed in `evaluation/gates.py` before any data is seen, and
-`scripts/verify_selective.py` proves each one can fail.
+`scripts/verify_selective.py` proves each one can fail — in both directions.
+
+### The result: how to spend the budget
+
+**A1 — at matched compute, does anything beat the default?** The default is
+what people ship: the largest guard available, ranked by its own confidence. A
+win means another policy sends fewer bad decisions to production for the same
+compute and the same reviewer hours. Must beat it by 5% relative residual risk;
+shipping 0.5% fewer bad decisions does not justify rebuilding a pipeline.
+`CHEAPER_GUARD_WINS` / `BETTER_SELECTION_WINS` / `DEFAULT_IS_BEST`.
+
+**A2 — does the right policy depend on the budget?** If one policy wins
+everywhere the recommendation is a sentence. If the winner changes, the
+recommendation is a rule and the crossover point is the result.
+
+### Supporting: why a policy won
 
 **S1 — is native confidence usable here?** Expected to pass. Replicates
-Safety-Flag on our models. A failure means our pipeline is broken, not that we
-found something.
+Safety-Flag on our models. A failure means the pipeline is broken.
 
 **S2 — the squashing tax.** Does the raw margin beat the probability? Free to
-test, free to act on. If it passes, rank on the margin everywhere.
+test, free to act on.
 
-**S3 — the crux.** Does any alternative signal beat native confidence, by at
-least 0.01 AURC, surviving Holm correction across every signal tested? The
-baseline is native confidence. `NATIVE_IS_BEST` is a real outcome and gets
-written up.
+**S3 — does any alternative beat native confidence?** By at least 0.01 AURC,
+surviving Holm correction across every signal tested. **A signal can win S3 and
+still lose A1**, if the compute it costs would have bought a better guard — that
+dissociation is why both are run.
 
-**S4 — is instability independent?** The guard against S3 passing for a boring
-reason. If perturbation instability merely restates a small margin, it costs
-~10× the inference and adds nothing. Tested by correlation, and by whether
-stability still ranks errors in the saturated region where the margin provably
-cannot.
+**S4 — is instability independent of the margin?** The guard against S3 passing
+for a boring reason.
 
 **S5 — does guard kind decide it?** Generative versus encoder.
 
@@ -196,9 +245,10 @@ models/
   llm_loader.py      GGUF scorer: predict_score, prefix KV cache, label tokens
   hf_loader.py       transformers scorer for encoder guards
 evaluation/
+  allocation.py      the oversight allocation problem: policies, prices, frontier
   selective.py       risk-coverage, AURC, errors-caught-at-budget, signal comparison
   signals.py         the five uncertainty signals
-  gates.py           S1-S5, claims-to-evidence
+  gates.py           A1-A2 (allocation), S1-S5 (signals), claims-to-evidence
   analyze.py         runs everything, writes tables and figures
   score_range.py     can a threshold move here?  measured, not assumed
   calibration.py     ECE, Brier, temperature (baseline construction only)

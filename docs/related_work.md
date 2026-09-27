@@ -52,27 +52,50 @@ entry. Do not cite anything marked `SNIPPET` without reading it first.
   Polarization must be tested on our own models, not asserted from the
   Artificial Analysis figure.
 
-**Where we differ.** In one sentence, to be defended in one breath:
+**Where we differ.** The framing risk is real and has to be answered head on:
+a reviewer who reads this as "Safety-Flag plus four more signals" will reject
+it as an increment, and they would be right to. So the difference is not the
+signal count. It is the **unit of analysis**.
 
-> Safety-Flag showed a guard's confidence is somewhat useful for routing human
-> review. We ask whether signals that ignore the confidence score entirely do
-> better -- and what they cost.
+Safety-Flag asks *how reliable is this moderator?* The unit is the model and
+the output is a benchmark. We ask:
+
+> **Given a fixed oversight budget, how should a deployment spend it -- on a
+> better guard, on better selection of what a human sees, or on more review?**
+
+The unit is the deployment, the output is an allocation policy, and the
+signals are instruments rather than the contribution. Three questions follow
+that Safety-Flag structurally cannot pose, because its one signal is free and
+so no tradeoff exists:
+
+- A signal costing 10x inference competes against simply buying more reviewer
+  hours. Which wins?
+- It also competes against spending that compute on a larger guard. Which wins?
+- Does the answer change with the budget, and where?
+
+In one sentence, to be defended in one breath:
+
+> Safety-Flag measured how reliable guards are. We ask what a deployment
+> should *do* about it when compute and reviewer time are both finite.
 
 Expanded, in the order a reviewer will press on them:
 
 | # | Difference | Why it matters |
 |---|---|---|
-| 1 | **They test one signal. We test five.** | They use the number the guard already produces. We race five ways of spotting a shaky decision against each other |
+| 1 | **Different unit of analysis: deployment, not model.** | Theirs is a benchmark of model properties. Ours is an allocation problem with a budget constraint, and the answer is a policy |
 | 2 | **Three of our signals never read the confidence score.** | Rewording the message, cross-model agreement and cross-precision agreement are behavioural. They remain computable when the score carries no ranking information -- the regime where Safety-Flag's approach runs out of road |
 | 3 | **Their result is our starting line.** | We do not contest their finding. We take it as the floor and ask what is above it. The baseline in `gate_s3` is *their* method, not random deferral |
 | 4 | **We question the number itself.** | `p_unsafe` is `sigmoid(margin)`, and past a margin of ~37 the float64 sigmoid ties every score at 1.0. They use the probability; we compare it against the raw margin underneath. Free to test |
-| 5 | **We price the signals.** | Their signal is free, so cost never arises. Rewording a prompt k ways costs k x inference, and `gate_s4` exists solely to catch a signal that wins for a boring reason |
+| 5 | **We price everything, in two units.** | Their signal is free, so cost never arises. Every policy here carries a compute price and a human price, and no exchange rate is assumed between them -- the result is a frontier, not a ranking |
 | 6 | **We add a kind of guard they do not include.** | They split general-purpose LLMs against dedicated guards -- both of which emit a *token*. An encoder classifier with a trained probability head is in neither category |
 | 7 | **We pre-register failable gates.** | Benchmarks describe what they find. `docs/preregistration.md` fixes which outcome licenses which claim, and `scripts/verify_selective.py` proves the criteria can fail |
 
-**Everything rests on 1 and 2.** The rest is supporting detail. If a reviewer
-does not accept "they measured one signal, we search for a better one", nothing
-further down the list rescues the contribution.
+**Everything rests on 1 and 2.** If a reviewer does not accept that the
+allocation problem is a different question from the benchmark, nothing further
+down the list rescues the contribution. The defence is concrete: the headline
+experiment is a head-to-head at *matched compute* between a small guard with
+expensive selection and a large guard with free selection, and Safety-Flag has
+neither the cost model nor the comparison to run it.
 
 **What is NOT a difference** -- state this before a reviewer does:
 
