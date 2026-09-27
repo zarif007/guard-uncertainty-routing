@@ -28,7 +28,7 @@ if [ -z "$GPU_LAYERS" ]; then
 fi
 
 echo "=========================================================="
-echo " Quantized Guardrail Pipeline"
+echo " Guard Uncertainty Routing"
 echo " models:   $MODELS"
 echo " datasets: $DATASETS"
 echo " threads:  ${THREADS:-auto}   gpu_layers: $GPU_LAYERS"

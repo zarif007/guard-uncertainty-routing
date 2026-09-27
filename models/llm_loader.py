@@ -152,7 +152,7 @@ class LLMGuard:
         self.use_prefix_cache = use_prefix_cache
 
         # Runtime knobs are recorded because latency and throughput are
-        # conditional on them, not just on the quantization level.
+        # conditional on them, not just on which guard is loaded.
         self.n_ctx = n_ctx
         self.n_gpu_layers = n_gpu_layers
         self.n_threads = n_threads
@@ -343,12 +343,12 @@ class LLMGuard:
             "model_key": self.config["key"],
             "precision": self.config["precision"],
             "family": self.config["family"],
-            "algorithm": self.config["algorithm"],
+            "kind": self.config["kind"],
             "bits": self.config["bits"],
             "size_gb": self.config["size_gb"],
             "repo": self.config["repo"],
             "filename": self.config["filename"],
-            "quantization_method": self.config["quantization_method"],
+            "loader": self.config["backend"],
             "template_name": self.template.name,
             "template_fingerprint": self.template_fingerprint,
             "template_source": self.template.source,
