@@ -43,6 +43,22 @@ errors. It also found that fitting one temperature per model reduces
 calibration error substantially *without changing predicted labels or
 confidence ordering*.
 
+**Read in full on 2026-09-28.** Three further facts, all binding:
+
+- **Appendix D.1 is a published negative result on a behavioural signal.**
+  Sampled-answer agreement (five stochastic generations, verdict agreement)
+  loses to token-logprob confidence on every model tested — AURC 0.115 vs
+  0.048, 0.163 vs 0.082, 0.427 vs 0.300. Our signal 3 has to beat that prior,
+  and the argument is recorded in `related_work.md` §0: they vary the decoder,
+  we vary the input; their numbers are general-purpose models, not guards; and
+  whole-curve AURC is not the low-coverage tail a deployment uses.
+- **They report coverage at 50%, 80% and 100% only.** Risk@0.5 means a human
+  reviews half of all traffic. The deployment regime — 1% to 20% — is
+  unreported, and that is where this study lives.
+- **Their protocol is balanced ~50/50 by construction**, on ~200 items per
+  benchmark. Real traffic runs 1-5% harmful, which is why ToxicChat is our
+  headline set.
+
 Two consequences, both binding on this study:
 
 1. **The baseline is native confidence, not random.** "Beats random" was the
@@ -119,6 +135,19 @@ one's gain. Gate S4 exists to catch exactly this.
 1b. **Residual risk is the objective.** Errors caught, risk reduction and
    AURC are all reported, but the claim is always about bad decisions that
    reach production.
+
+1c. **The deployment regime is 1-20% review, and it is reported in full.**
+   A 50% budget is also computed, solely so one point is directly comparable
+   to Safety-Flag's Risk@0.5. No conclusion rests on it.
+
+1d. **Signal 3 carries a published negative prior.** Safety-Flag D.1 found a
+   behavioural agreement signal worse than logprob confidence. If our
+   perturbation signal also loses, that is a *replication*, and it will be
+   reported as one rather than buried. If it wins, the paper must explain why
+   input perturbation succeeds where decoder sampling failed — and that
+   explanation is fixed now, before the data: sampling a greedily-scored
+   single label token has no variance to measure, so the two signals are not
+   the same experiment.
 
 2. **A win must be material, not merely significant.** A signal counts as
    better only if it improves AURC by at least 0.01 *and* survives Holm

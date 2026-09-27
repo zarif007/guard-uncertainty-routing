@@ -34,89 +34,89 @@ entry. Do not cite anything marked `SNIPPET` without reading it first.
 
 | Work | Idea | Status |
 |---|---|---|
-| [Safety-Flag: A Unified Benchmark for the Reliability and Calibration of LLM Content Moderators](https://arxiv.org/abs/2609.19072) | Seven safety benchmarks (BeaverTails, XSTest, Ethics, WildGuard, Aegis, ToxiChat, ToxiGen) in one balanced flag / do-not-flag protocol. Measures three dimensions: error direction, probability calibration, and **confidence-based error ranking for human review**. Six general-purpose LLMs, four dedicated guards, three reference models. Releases item-level decisions and confidence scores. | `ABSTRACT` |
+| [Safety-Flag: A Unified Benchmark for the Reliability and Calibration of LLM Content Moderators](https://arxiv.org/abs/2609.19072) | Seven safety benchmarks (BeaverTails, XSTest, Ethics, WildGuard, Aegis, ToxiChat, ToxiGen) in one balanced flag / do-not-flag protocol. Three dimensions: error direction, probability calibration, confidence-based error ranking for human review. Releases item-level decisions and confidence scores. | `READ` (2026-09-28) |
 
-**What it establishes, and what it therefore takes off the table.**
+### What it actually contains
 
-- *"Confidence-based abstention lowers selective risk for every model"* — so
-  **"guards cannot rank their own uncertainty" is not an open question.** It
-  has been measured and the answer is that native confidence works, unevenly.
-  Any framing built on guards being unable to self-assess is dead.
-- *"Fitting one temperature per model reduces calibration error by 2.8-6.0x
-  without changing predicted labels or confidence ordering"* — this is the
-  inertness result from the previous study, observed empirically. We can still
-  state it as a general fact with a proof, but it is no longer a headline.
-- *"Dedicated guards produce fewer false alarms and are better calibrated, but
-  several have higher miss rates outside their documented coverage"* — this
-  **contradicts** the assumption that guard scores are uniformly degenerate.
-  Polarization must be tested on our own models, not asserted from the
-  Artificial Analysis figure.
+**Models.** Six general-purpose LLMs (Qwen2.5-7B, Qwen2.5-32B, Llama-3.1-8B,
+Mistral-7B, Gemma-2-9B, OLMo-2-7B), four dedicated guards (Llama Guard 3 8B,
+WildGuard 7B, ShieldGemma 9B, Aegis 7B), three reference models
+(R1-Distill-Llama-8B, gpt-4.1-mini, gpt-5.4-mini).
+**Every one of them is generative.** No encoder classifier appears anywhere.
 
-**Where we differ.** The framing risk is real and has to be answered head on:
-a reviewer who reads this as "Safety-Flag plus four more signals" will reject
-it as an increment, and they would be right to. So the difference is not the
-signal count. It is the **unit of analysis**.
+**Confidence.** Two signals recorded (§4): token-logprob confidence, from the
+two option-token logprobs after a fixed judgment prefix, and verbalized
+confidence, the model's own 1-10 self-report rescaled to [0,1].
 
-Safety-Flag asks *how reliable is this moderator?* The unit is the model and
-the output is a benchmark. We ask:
+**Selective prediction.** AURC is the primary metric — the same instrument we
+use. Risk is reported at **100%, 80% and 50% coverage** (§5.5, Table 15).
 
-> **Given a fixed oversight budget, how should a deployment spend it -- on a
-> better guard, on better selection of what a human sees, or on more review?**
+**Scale.** About 200 balanced items per benchmark, ~1,400 in total, roughly
+50/50 harmful/benign.
 
-The unit is the deployment, the output is an allocation policy, and the
-signals are instruments rather than the contribution. Three questions follow
-that Safety-Flag structurally cannot pose, because its one signal is free and
-so no tradeoff exists:
+### The collision, stated plainly
 
-- A signal costing 10x inference competes against simply buying more reviewer
-  hours. Which wins?
-- It also competes against spending that compute on a larger guard. Which wins?
-- Does the answer change with the budget, and where?
+**Appendix D.1 tests a behavioural signal and finds it loses.**
+"Sampled-answer agreement" — five stochastic generations per item, scored on
+whether the verdict agrees — is compared against token-logprob confidence.
+Token-logprob wins on every model (Table 14):
 
-In one sentence, to be defended in one breath:
+| Model | logprob AURC | sample-agreement AURC |
+|---|---:|---:|
+| Qwen2.5-32B | 0.048 | 0.115 |
+| Gemma-2-9B | 0.082 | 0.163 |
+| Llama-3.1-8B | 0.300 | 0.427 |
 
-> Safety-Flag measured how reliable guards are. We ask what a deployment
-> should *do* about it when compute and reviewer time are both finite.
+Their conclusion: *"Token-logprob confidence gives the lowest AURC for all six
+models."*
 
-Expanded, in the order a reviewer will press on them:
+**This is a real headwind for signal 3 and it must be cited as one.** A
+reviewer will ask why paraphrase-consistency should succeed where
+sample-consistency failed. Three answers, and they have to be made in the
+paper rather than assumed:
 
-| # | Difference | Why it matters |
-|---|---|---|
-| 1 | **Different unit of analysis: deployment, not model.** | Theirs is a benchmark of model properties. Ours is an allocation problem with a budget constraint, and the answer is a policy |
-| 2 | **Three of our signals never read the confidence score.** | Rewording the message, cross-model agreement and cross-precision agreement are behavioural. They remain computable when the score carries no ranking information -- the regime where Safety-Flag's approach runs out of road |
-| 3 | **Their result is our starting line.** | We do not contest their finding. We take it as the floor and ask what is above it. The baseline in `gate_s3` is *their* method, not random deferral |
-| 4 | **We question the number itself.** | `p_unsafe` is `sigmoid(margin)`, and past a margin of ~37 the float64 sigmoid ties every score at 1.0. They use the probability; we compare it against the raw margin underneath. Free to test |
-| 5 | **We price everything, in two units.** | Their signal is free, so cost never arises. Every policy here carries a compute price and a human price, and no exchange rate is assumed between them -- the result is a frontier, not a ranking |
-| 6 | **We add a kind of guard they do not include.** | They split general-purpose LLMs against dedicated guards -- both of which emit a *token*. An encoder classifier with a trained probability head is in neither category |
-| 7 | **We pre-register failable gates.** | Benchmarks describe what they find. `docs/preregistration.md` fixes which outcome licenses which claim, and `scripts/verify_selective.py` proves the criteria can fail |
+1. **Sampling is not perturbation.** They vary the *decoder*; we vary the
+   *input*. Resampling a near-deterministic classifier measures decoding
+   temperature, not the model's uncertainty about the content. A guard scored
+   greedily on one label token has no sampling variance at all, which is why
+   that signal is unavailable to us and paraphrase is not.
+2. **The quoted numbers are general-purpose models.** The three models in
+   Table 14 above are all general-purpose LLMs prompted to moderate. The
+   pathology we care about — a dedicated guard whose scores are pinned — is a
+   guard property, and the appendix does not report guards.
+3. **Whole-curve AURC is not the deployment regime.** A signal can be worse
+   across the whole curve and better in the low-coverage tail, and the tail is
+   the only part a deployment uses.
 
-**Everything rests on 1 and 2.** If a reviewer does not accept that the
-allocation problem is a different question from the benchmark, nothing further
-down the list rescues the contribution. The defence is concrete: the headline
-experiment is a head-to-head at *matched compute* between a small guard with
-expensive selection and a large guard with free selection, and Safety-Flag has
-neither the cost model nor the comparison to run it.
+### What is confirmed unoccupied
 
-**What is NOT a difference** -- state this before a reviewer does:
+Read in full, none of these appear anywhere in the paper:
 
-- **Our datasets overlap theirs.** XSTest, WildGuard and ToxiChat are in both.
-  That is an advantage (a published comparison) but it is not novelty.
-- **They have more models.** Thirteen against our four. We are not out-scaling
-  them and should not imply it.
-- **"Guards are overconfident" is their finding**, as is "temperature scaling
-  fixes calibration without changing the ranking". Both are cited, not claimed.
-- **Difference 6 is the weakest.** Their dedicated-vs-general-purpose split is
-  already a kind-of-guard comparison. Ours is genuinely a different cut --
-  encoder heads are in neither of their categories -- but it has to be drawn
-  carefully rather than asserted.
+- **No cost analysis of any kind.** No latency, no compute budget, no model
+  size against benefit, no comparison of spending compute versus spending
+  reviewer time. The allocation frame is entirely open.
+- **No encoder classifiers.** Every model is generative, so gate S5 —
+  does the *kind* of guard decide whether its confidence is usable — is fully
+  open. This was the differentiator I had previously called the weakest; the
+  full text makes it one of the strongest.
+- **No logit margin as distinct from probability.** They use token-logprob
+  *probabilities*; the sigmoid-saturation question (our S2) is untouched.
+- **No cross-model or ensemble disagreement.**
+- **No input perturbation or paraphrase robustness.**
 
-**What it gives us.** Item-level decisions and confidence scores are released.
-XSTest, WildGuard and ToxiChat overlap our dataset set, so on those items we
-can compare against a *published* native-confidence baseline rather than a
-reimplementation of one. "We beat the published number on the same items" is a
-much stronger claim than "we beat our version of it."
+### Two differences the full text handed us
 
-**Open item:** confirm the item-level overlap and reuse their scores directly.
+**The deployment regime is missing.** They report risk at 50%, 80% and 100%
+coverage. Risk@0.5 means a human reviews *half of all traffic*. No moderation
+team operates there. Our budgets are 1-20%, and nothing in Safety-Flag says
+what happens in that range — where the queue is small and picking well matters
+most.
+
+**The base rate is artificial.** Their protocol is balanced ~50/50 by
+construction. Real traffic is on the order of 1-5% harmful, which is why
+ToxicChat is our headline set. At a realistic base rate the reviewer's queue
+composition changes completely, and a signal tuned on balanced data need not
+transfer.
 
 ### Adjacent, and each one narrows a different door
 
@@ -318,8 +318,9 @@ Stated plainly so it can be checked rather than hoped about.
 
 ## Open items
 
-- [ ] Read [Safety-Flag](https://arxiv.org/abs/2609.19072) in full; confirm it
-      does not test alternative uncertainty signals anywhere.
+- [x] Read [Safety-Flag](https://arxiv.org/abs/2609.19072) in full (2026-09-28).
+      It tests one alternative signal, in Appendix D.1, and finds it loses.
+      Recorded in section 0 as a headwind for signal 3.
 - [ ] Map Safety-Flag's released item-level scores against our five datasets
       (XSTest, WildGuard and ToxiChat look like matches) and reuse their
       baseline directly.

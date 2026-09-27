@@ -52,7 +52,11 @@ from evaluation.signals import (
 # infrastructure and costs no extra inference.
 FREE_SIGNALS = (NATIVE, MARGIN)
 
-DEFAULT_BUDGETS = (0.0, 0.01, 0.02, 0.05, 0.10, 0.20)
+# 0.01-0.20 is the regime a moderation team actually operates in.  0.50 is
+# included only because Safety-Flag reports Risk@0.5, and having one directly
+# comparable point turns "we beat the published number" into a checkable claim
+# rather than a reimplementation of it.  Nobody reviews half their traffic.
+DEFAULT_BUDGETS = (0.0, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50)
 
 
 def guard_unit_cost(df: pd.DataFrame, model: str,
