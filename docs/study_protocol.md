@@ -75,22 +75,25 @@ In one line:
 
 ## 1. The question
 
-A guard model is a filter. It reads a user's message and decides: safe, or
-unsafe. It sits in front of a chatbot and blocks the bad stuff.
+A guard model is a filter. It reads what a user types and decides whether to
+block it. It gets things wrong in both directions.
 
-Guards make mistakes. In a real deployment, a human reviewer can check some of
-those decisions — but only a small fraction, because human attention is the
-expensive part. So the practical question is:
+A company running one has three things it can spend, and they compete for the
+same budget:
 
-> **Out of 10,000 messages, which 500 should a human look at?**
+- **compute on a bigger guard** — right more often, costs more per message
+- **compute on checking the guard** — run it again on a reworded message, or
+  run a second guard, and see whether the answer holds up
+- **reviewer hours** — a person double-checks some decisions
 
-Pick well and you catch most of the guard's mistakes. Pick badly and you waste
-the reviewer's time on cases the guard already got right.
+All three buy the same thing: fewer bad decisions reaching users. Nobody has
+worked out the exchange rate.
 
-To pick well, we need a signal that says *"this particular decision is shaky."*
-The question of this study is where that signal comes from.
+> **How should a fixed oversight budget be spent?**
 
----
+A **policy** is a pair: which guard makes the call, and how the shaky cases get
+picked out for a human. Every policy has a compute price and a human price.
+The study prices them and compares them.
 
 ## 2. What is already known, and what is not
 
@@ -124,45 +127,58 @@ That is the gap:
 
 ## 3. Why the question is well posed
 
-This study cannot produce a non-result:
+This study cannot produce a non-result. Every outcome is a finding:
 
-- **Some alternative signal beats native confidence** → we have a concrete,
-  deployable recommendation: use this signal to route human review.
-- **No alternative signal beats it** → a precise, bounded finding: guard
-  models' native confidence is already close to the best available signal for
-  routing review, and the expensive alternatives are not worth their cost.
-
-The second is not a failure. It closes a question that people would otherwise
-keep guessing about.
-
----
+- **A cheaper guard with better checking wins** → the cheapest way to catch a
+  guard's mistakes is not a better guard.
+- **Better checking wins on the same guard** → a deployment change with a
+  measurable payoff and no new model.
+- **The expensive default is already right** → we priced every alternative and
+  showed what it bought, which nobody has done.
+- **The winner changes with the budget** → then the answer is a *rule*, and
+  where it changes over is the result.
 
 ## 4. What we measure
 
-### The core experiment
+### The objective: what still reaches users
 
-Take 10,000 messages. The guard classifies all of them and gets some wrong.
-The human reviewer has capacity for 500.
+Not accuracy, and not "mistakes the reviewer caught" — both flatter a bad
+setup. What counts is **residual risk**: the mistakes still reaching real users
+after the human has reviewed their slice.
 
-Each uncertainty signal proposes a different 500. We ask one question:
+```
+residual = mistakes the guard made  -  mistakes the human saw
+```
 
-> **At the same review budget, which signal catches the most guard errors?**
+A guard making 200 mistakes and catching 160 ships more harm than one making 50
+and catching 30. Residual punishes a weak guard even when its error-spotting is
+excellent, which is exactly the tradeoff being studied.
 
-If the guard made 1,000 errors and a reviewer looking at 500 cases finds:
+### How a slice gets chosen
 
-| Signal | Errors found | Reading |
-|---|---:|---|
-| Random selection | ~50 | The floor |
-| Native confidence | ~120 | Safety-Flag's approach. **This is the bar to beat** |
-| Some alternative | ~400 | A real finding |
+There is **no threshold**. Each signal gives every message a number saying how
+shaky its decision looks. Sort by that number, hand the shakiest `budget`
+fraction to the human. The budget sets the cut.
 
-We sweep the budget from 0% to 100% rather than fixing it at 5%, which gives a
-full curve. We summarise the curve as one number and compare signals on it.
+That is why the signals never need to be calibrated onto a common scale — only
+their *order* is ever used.
 
-**Important:** the number to beat is **native confidence**, not random. Random
-was the right baseline before Safety-Flag. It is not any more.
+### The headline experiment
 
----
+An 8B guard costs about six times a 1B guard per message. So for the same
+money you can run the small guard **and** reword every message six times to see
+whether its verdict holds.
+
+> At matched compute, which ships fewer bad decisions?
+
+Nobody has measured it. It is a decision teams make every week.
+
+### The two cost units, never mixed
+
+Compute and reviewer hours are not denominated in the same thing, and any
+exchange rate we pick is arguable and dates badly. Nothing here converts one
+into the other. Policies are compared on a two-dimensional frontier, and the
+reader brings their own prices.
 
 ## 5. The signals we compare
 
@@ -258,41 +274,49 @@ on overlapping benchmarks.
 
 ## 8. The gates
 
-Fixed before any data is collected, and each one can fail. Same discipline as
-`preregistration.md`.
+Fixed before any data is collected, and each one can fail.
+`scripts/verify_selective.py` proves it, by running every gate against
+synthetic data whose answer is known by construction.
+
+### The result: how to spend the budget
 
 | Gate | Asks | Passes if |
 |---|---|---|
-| **S1 — is native confidence usable here?** | Does the guard's own confidence beat random on *our* models? | Confidence interval excludes zero. Expected to pass — this replicates Safety-Flag and validates our setup |
-| **S2 — the squashing tax** | Does the raw margin beat the probability? | Paired test on the difference survives correction |
-| **S3 — does anything beat native confidence?** | **The crux.** Do signals 3, 4 or 5 beat signal 1 at matched budget? | Paired test per signal, corrected across signals |
-| **S4 — is instability independent?** | Does perturbation instability add anything *beyond* the margin? | Measured on cases where the margin is uninformative |
-| **S5 — kind of guard** | Do encoder classifiers and generative guards differ? | Per-class comparison with a paired test |
+| **A1 — beat the default?** | At matched compute, does any policy ship fewer bad decisions than the largest guard using its own confidence? | At least **5% relative** residual reduction |
+| **A2 — does it depend on budget?** | Does a different policy win at 1% review than at 20%? | More than one distinct winner |
 
-**S3 is the crux.** S1 is a sanity check that our pipeline reproduces known
-results. S4 is the guard against the most likely way S3 succeeds for a boring
-reason.
+**A1 is the crux.** `DEFAULT_IS_BEST` is a real outcome and gets written up.
 
----
+### Supporting: why a policy won
+
+| Gate | Asks |
+|---|---|
+| **S1** | Is the guard's own confidence usable at all on our models? (expected to pass — replicates Safety-Flag and validates the pipeline) |
+| **S2** | Does the raw margin beat the probability? Free to test, free to act on |
+| **S3** | Does any alternative signal beat native confidence, after correcting for testing several? |
+| **S4** | Is perturbation instability independent of the margin, or just a noisy copy of it? |
+| **S5** | Do encoder classifiers and generative guards differ? |
+
+**A signal can win S3 and still lose A1** — if the compute it cost would have
+bought a better guard instead. That dissociation is the point of running both.
 
 ## 9. How we run it
 
-| Phase | What happens | GPU |
-|---|---|---|
-| **0** | Build fake score data where the right answer is known by construction; confirm the gates give the right verdict | No |
-| **1** | One guard, one dataset, signals 1 and 2. **Go / no-go on the cheap signals** | ~10 min |
-| **2** | Add perturbation instability on the same slice. **Go / no-go on the expensive signal** | ~1 hr |
-| **3** | All models, all datasets, all signals | ~4 hrs |
-| **4** | Cross-precision disagreement, reusing the bit ladder | ~5 hrs |
-| **5** | Optional: route to a bigger guard instead of a human | ~1 hr |
+| Phase | What happens | Command | GPU |
+|---|---|---|---|
+| **0** | Synthetic data with a known answer; confirm every gate fires correctly | `scripts/verify_selective.py` | none |
+| **1** | One guard, two small datasets, the free signals. **Go / no-go** | `run_phase.py --phase 1` | ~10 min |
+| **2** | Add perturbation on the same slice. **Go / no-go on the expensive signal** | `scripts/perturb.py` | ~1 hr |
+| **3** | All four guards, all five datasets, all signals | `run_phase.py --phase 3` | ~4 hrs |
+| **4** | Cross-precision agreement, reusing the precision ladder | `run_phase.py --phase 4` | ~5 hrs |
 
-Phase 0 uses the same trick `verify_gates.py` already does: a test that cannot
-fail on data built to fail it is decoration.
+Analysis is `evaluation/analyze.py` and needs no GPU.
+
+Phase 0 is the same trick `verify_selective.py` uses throughout: a test that
+cannot fail on data built to fail it is decoration.
 
 Phases 1 and 2 are genuine stop points. Phase 2 in particular decides whether
-the expensive signal earns its cost before we scale it.
-
----
+the expensive signal earns its cost before it is scaled to everything.
 
 ## 10. What we need
 
@@ -319,11 +343,22 @@ saves a full re-run later.
 
 ## 11. What we get
 
-| Outcome | The finding |
-|---|---|
-| A cheap signal (margin) beats native confidence | Free improvement over the published baseline — change one line and route review better |
-| An expensive signal (instability, disagreement) beats it | Behavioural signals carry uncertainty information that confidence scores cannot express. The strongest result |
-| Encoders and generative guards differ | The architecture determines whether a guard can support human oversight |
-| Nothing beats native confidence | Guard confidence is already near the practical ceiling for routing review; the expensive alternatives are not worth their cost. A bounded, useful negative result |
+| A1 | A2 | The finding |
+|---|---|---|
+| `CHEAPER_GUARD_WINS` | any | **The cheapest way to catch a guard's mistakes is not a better guard.** The strongest result available |
+| `BETTER_SELECTION_WINS` | any | Same guard, better routing, same compute. A deployment change with no model change |
+| `DEFAULT_IS_BEST` | `BUDGET_DEPENDENT` | The default holds where most teams run, but not everywhere. The crossover point is the result |
+| `DEFAULT_IS_BEST` | `ONE_POLICY_WINS` | The default is already the right use of the budget — and we say precisely what the alternatives cost and what they bought |
 
-All four are publishable, and the study is designed so one of them must occur.
+All four are publishable, and the design guarantees one of them occurs.
+
+---
+
+## Current state
+
+**Nothing has been run on a real model yet.** `results/` is empty; every number
+in this repository so far comes from synthetic data used to verify that the
+gates fire correctly. Phase 1 produces the project's first real measurements.
+
+`docs/preregistration.md` was committed while this was true, which is the only
+thing that makes a pre-registration mean anything.

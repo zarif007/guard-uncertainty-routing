@@ -6,9 +6,16 @@ How should a fixed oversight budget be spent?
 > budget, and a reviewer with limited hours. Every message gets a decision one
 > way or another. What is the best way to spend what you have?
 
+**New here?** `CLAUDE.md` is the orientation file — what this is, the rules
+that are not style preferences, and the gotchas that have already cost time.
+
 Plain-language walkthrough: `docs/study_protocol.md`.
 What each outcome licenses: `docs/preregistration.md`.
 Literature and differentiation: `docs/related_work.md`.
+
+> **State:** nothing has run on a real model yet. `results/` is empty and every
+> number in this repo so far is synthetic, used to verify the gates fire
+> correctly. Phase 1 produces the first real measurements.
 
 ---
 
@@ -209,6 +216,10 @@ Criteria are fixed in `evaluation/gates.py` before any data is seen, and
 `scripts/verify_selective.py` proves each one can fail — in both directions.
 
 ### The result: how to spend the budget
+
+**A1 is the crux.** S1-S5 are supporting evidence — they explain *why* a policy
+won. A signal can win S3 and still lose A1, if the compute it cost would have
+bought a better guard instead.
 
 **A1 — at matched compute, does anything beat the default?** The default is
 what people ship: the largest guard available, ranked by its own confidence. A
