@@ -1,4 +1,15 @@
+# Model weights.  GGUFs land in models/weights (or MODEL_WEIGHTS_DIR on a
+# pod); transformers-backed guards land in models/hf via cache_dir.
 models/weights
+models/hf/
+
+# Downloaded and normalized datasets.  harmbench and xstest are committed
+# directly under datasets/<name>/; everything else is fetched by
+# scripts/download_datasets.py and normalized into datasets/normalized/, so
+# both are derived output.
+datasets/cache/
+datasets/normalized/
+
 # smoke-test scratch output
 results/smoke/
 

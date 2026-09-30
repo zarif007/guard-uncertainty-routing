@@ -26,6 +26,11 @@ RESULTS = []
 
 
 def record(section, name, status, detail=""):
+    # `name` is coerced because it is sometimes a value read from the registry
+    # (a repo id, which is None for transformers-backed guards).  A reporter
+    # that crashes while reporting a failure hides the failure it was called
+    # for, and takes the rest of preflight down with it.
+    name = str(name)
     RESULTS.append((section, name, status, detail))
     mark = {OK: "  ok  ", WARN: " warn ", FAIL: " FAIL "}[status]
     print(f"  [{mark}] {name:<38} {detail}")
@@ -150,7 +155,7 @@ def check_gated_datasets():
 
 def check_models(groups):
     print("\n=== Model files ===")
-    from huggingface_hub import list_repo_files
+    from huggingface_hub import list_repo_files, model_info
 
     from models.llm_loader import BUILT_DIR, DEFAULT_WEIGHTS_DIR
     from models.registry import expand_many, get_config, sort_keys, total_disk_gb
@@ -171,6 +176,29 @@ def check_models(groups):
 
     missing = []
     for repo, repo_keys in by_repo.items():
+        # A transformers-backed guard (an encoder classifier) has no GGUF repo;
+        # its weights come from hf_id.  Listing files in repo=None asked the hub
+        # for /models/None, which 404s.
+        if repo is None:
+            for key in repo_keys:
+                hf_id = get_config(key)["hf_id"]
+                try:
+                    model_info(hf_id)
+                except Exception as exc:
+                    missing.append(key)
+                    record("models", key, FAIL,
+                           f"{hf_id}: {type(exc).__name__}")
+                    continue
+                record("models", key, OK, f"{hf_id} on hub")
+                # Existing on the hub is not the same as answering our
+                # question.  Many moderation encoders score toxicity, not
+                # harmful-request, and one of those would make gate S5 report
+                # an artefact.  This is the only place the distinction can be
+                # raised before GPU time is spent.
+                record("models", f"{key} task alignment", WARN,
+                       "not verified — run scripts/check_encoder_alignment.py "
+                       f"--model {key} before any S5 comparison")
+            continue
         try:
             available = {f for f in list_repo_files(repo) if f.endswith(".gguf")}
         except Exception as exc:

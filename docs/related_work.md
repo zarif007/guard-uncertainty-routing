@@ -97,8 +97,10 @@ Read in full, none of these appear anywhere in the paper:
   reviewer time. The allocation frame is entirely open.
 - **No encoder classifiers.** Every model is generative, so gate S5 —
   does the *kind* of guard decide whether its confidence is usable — is fully
-  open. This was the differentiator I had previously called the weakest; the
-  full text makes it one of the strongest.
+  open. **We do not close it either** (2026-10-01): the one candidate scored
+  AUROC 0.599 against our label, a toxicity head rather than a harmful-request
+  head, and replacing it was priced and declined. The gap stays open and this
+  study does not claim it. See `study_protocol.md` § Models.
 - **No logit margin as distinct from probability.** They use token-logprob
   *probabilities*; the sigmoid-saturation question (our S2) is untouched.
 - **No cross-model or ensemble disagreement.**
@@ -284,10 +286,13 @@ Ranked by how much weight each can bear. Rewritten after Safety-Flag.
    distinct prompts into ties. Comparing the two rankings costs nothing and
    may hand back free resolution. Nothing found does this.
 
-4. **Guard kind as the explanatory variable.** Generative guards emit a token;
-   encoder classifiers emit a trained probability. If self-knowledge tracks
-   architecture, the field's move to LLM-based guards has a cost nobody has
-   priced.
+4. ~~**Guard kind as the explanatory variable.**~~ **Withdrawn 2026-10-01.**
+   Generative guards emit a token; encoder classifiers emit a trained
+   probability, and if self-knowledge tracked architecture the field's move to
+   LLM-based guards would have a cost nobody has priced. No aligned encoder was
+   available to test it with — the candidate scored 0.599 against our label —
+   so this is **not** a differentiator this study claims. Items 1-3 and 5
+   stand on their own.
 
 5. **Pre-registered, demonstrably failable gates.**
    `scripts/verify_selective.py` asserts each verdict against synthetic score

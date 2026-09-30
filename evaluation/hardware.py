@@ -99,13 +99,19 @@ def torch_device(preferred: str = "auto") -> str:
     return "cpu"
 
 
-# float32 is not an option for the 8B guard models: the weights alone need
-# ~32 GB, which does not fit the experiment hardware.  It also buys nothing
-# for the transformers-backed guards, whose numerical precision is
-# round-trip -- orders of magnitude coarser than bfloat16 mantissa rounding
-# in the baseline.  bfloat16 is preferred over float16 because it keeps
-# float32's exponent range, so logits cannot saturate.
-UNSUPPORTED_DTYPES = ("float32", "float64", "double")
+# float64 is never useful here: no guard is trained in it, and it only doubles
+# the footprint of a number the model never had.
+NEVER_SUPPORTED_DTYPES = ("float64", "double")
+
+# float32 is a MEMORY constraint, not a correctness one, so it is gated on
+# model size rather than banned outright.  For an 8B guard the weights alone
+# need ~32 GB, beyond the experiment hardware; for a small classifier it costs
+# a fraction of a gigabyte and is sometimes the only dtype that works at all
+# (DeBERTa computes its disentangled attention in float32 regardless of the
+# weight dtype, and multiplying that against float16 weights raises
+# "expected m1 and m2 to have the same dtype").  A model whose size is not
+# declared is treated as large, so the previous behaviour is the default.
+FLOAT32_MAX_SIZE_GB = 2.0
 
 
 def default_torch_dtype(device: str) -> str:
@@ -113,13 +119,31 @@ def default_torch_dtype(device: str) -> str:
     return "float16" if device == "mps" else "bfloat16"
 
 
-def check_dtype_supported(dtype: str, device: str) -> None:
-    """Reject dtypes the experiment hardware cannot hold."""
-    if dtype.lower().replace("torch.", "") in UNSUPPORTED_DTYPES:
+def check_dtype_supported(dtype: str, device: str,
+                          size_gb: Optional[float] = None) -> None:
+    """
+    Reject dtypes the experiment hardware cannot hold.
+
+    `size_gb` is the model's declared size.  Omit it and the caller is assumed
+    to be loading a full-size guard, which is the conservative reading.
+    """
+    d = dtype.lower().replace("torch.", "")
+    if d in NEVER_SUPPORTED_DTYPES:
         raise ValueError(
-            f"dtype '{dtype}' is not supported for the 8B guard models: the weights "
-            f"alone need ~32 GB, beyond the experiment hardware, and the extra "
-            f"mantissa is irrelevant to a 3-4 bit RTN perturbation. "
+            f"dtype '{dtype}' is not supported: no guard in this study is "
+            f"trained in it, and it only doubles the footprint of precision the "
+            f"weights never carried. Use bfloat16 (default on {device}) or float16."
+        )
+    if d == "float32":
+        if size_gb is not None and size_gb <= FLOAT32_MAX_SIZE_GB:
+            return  # small classifier; float32 is affordable and may be required
+        raise ValueError(
+            f"dtype '{dtype}' is not supported for a model of this size "
+            f"({'undeclared' if size_gb is None else f'{size_gb:.1f} GB'}): an 8B "
+            f"guard needs ~32 GB in float32, beyond the experiment hardware, and "
+            f"the extra mantissa is irrelevant to a 3-4 bit RTN perturbation. "
+            f"float32 is permitted below {FLOAT32_MAX_SIZE_GB:.0f} GB, where a "
+            f"small classifier may require it. "
             f"Use bfloat16 (default on {device}) or float16."
         )
 

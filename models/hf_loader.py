@@ -29,12 +29,15 @@ class HFGuard:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         device = torch_device(device)
-        if dtype == "auto":
-            dtype = default_torch_dtype(device)
-        check_dtype_supported(dtype, device)
         hf_token = hf_token or os.environ.get("HF_TOKEN") or None
 
+        # Resolved after get_config so the model's size is known: the float32
+        # rule is a memory constraint, so the check needs the size to apply it
+        # and to name the actual model in its error.
         config = get_config(f"{family}:fp16")
+        if dtype == "auto":
+            dtype = config.get("torch_dtype") or default_torch_dtype(device)
+        check_dtype_supported(dtype, device, size_gb=config.get("size_gb"))
         self.family = family
         self.hf_id = config["hf_id"]
         self.template = get_template(config["template"])
@@ -175,6 +178,10 @@ class EncoderGuard:
     The returned dict matches LLMGuard.predict_score exactly, so run_model.py,
     the signals and the gates need no special casing.
 
+    Dtype note: some encoder architectures cannot run at reduced precision, so
+    a family may pin `torch_dtype` in the registry and this loader honours it
+    before falling back to the device default.
+
     Label mapping is the weak point, not the model.  Many moderation encoders
     score *toxicity*, which is not the same question as *is this a harmful
     request*.  `label_mapping` in the run metadata records what was assumed;
@@ -196,8 +203,11 @@ class EncoderGuard:
 
         self.device = torch_device(device)
         if dtype == "auto":
-            dtype = default_torch_dtype(self.device)
-        check_dtype_supported(dtype, self.device)
+            # A family may pin its dtype (DeBERTa must run in float32; see the
+            # TORCH_DTYPE note in models/registry.py).  Falling through to the
+            # device default produced a forward-pass dtype mismatch.
+            dtype = config.get("torch_dtype") or default_torch_dtype(self.device)
+        check_dtype_supported(dtype, self.device, size_gb=config.get("size_gb"))
         hf_token = hf_token or os.environ.get("HF_TOKEN") or None
         cache_dir = cache_dir or os.environ.get("MODEL_WEIGHTS_DIR") or "./models/hf"
 

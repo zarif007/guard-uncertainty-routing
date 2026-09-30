@@ -24,8 +24,10 @@ produces the first real measurements.
 
 The nearest prior work is Safety-Flag (arXiv 2609.19072), read in full and
 recorded in `docs/related_work.md` §0. It measured how well a guard's *own*
-confidence ranks its errors. It contains no cost analysis and no encoder
-classifiers — those absences are what this study occupies.
+confidence ranks its errors. It contains no cost analysis, does not report the
+1-20% review regime, and has no encoder classifiers. The first two absences are
+what this study occupies; the third it leaves open, because no aligned encoder
+was available (`preregistration.md` Amendment 1).
 
 ## Start here, in order
 
@@ -107,10 +109,20 @@ python evaluation/analyze.py                         # tables + figures, no GPU
   alone is not enough — GGUFs are fetched with an explicit `cache_dir` that
   takes precedence, so weights land on the ephemeral container disk and vanish.
   `scripts/setup_runpod.sh` does this.
-- **The encoder model id in `registry.py` is unverified** and marked `# VERIFY`.
-  Many moderation encoders score *toxicity*, which is not the same question as
-  *harmful request* — a polite request for dangerous information scores low.
-  Run `scripts/check_encoder_alignment.py` before trusting any S5 result.
+- **The encoder is retired and gate S5 is not tested** (2026-10-01).
+  `KoalaAI/Text-Moderation` scored AUROC 0.599 against our label — a toxicity
+  head, not a harmful-request head. It is out of `GUARD_PANEL`, its family
+  entry is kept unused for the record, and `preregistration.md` Amendment 1
+  has the reasoning. `gate_s5` returns `NOT_EVALUABLE` on a single-kind panel
+  and the claim shows as `NOT_TESTED`, so nothing downstream needed changing.
+  **Do not add an encoder without running
+  `scripts/check_encoder_alignment.py` first** — many moderation encoders
+  score *toxicity*, and a polite request for dangerous information scores low.
+- **An encoder family must pin `torch_dtype` in `registry.py`.** DeBERTa
+  computes its attention in float32 whatever the weights are, so loading it at
+  the device default (float16) raises a dtype mismatch mid-forward.
+  `check_dtype_supported` permits float32 below 2 GB; above that it is a
+  memory constraint and still refused.
 - **`p_unsafe` is `sigmoid(margin)`**, and past a margin of ~37 the float64
   sigmoid returns exactly 1.0. Every prompt beyond that is tied and unrankable.
   This is why `conf_margin` exists as a separate signal and why S2 is worth

@@ -25,6 +25,13 @@ TIER_NAMES = {
 }
 
 
+# approx_rows is the count AFTER normalization, measured by materializing each
+# set (2026-10-01), not the total quoted by the source paper.  The normalizers
+# drop rows whose label does not map onto safe/unsafe -- wildguard skips any
+# prompt_harm_label outside harmful/unharmful, for instance -- so these run a
+# little below the published figures.  Recorded as measured because a row count
+# that does not match what the loader returns is how a sample-size claim in a
+# paper stops being checkable.
 @dataclass
 class DatasetSpec:
     name: str
@@ -106,14 +113,14 @@ DATASETS: Dict[str, DatasetSpec] = {
                           norm_xstest, approx_rows=450, verified=True,
                           local_csv="datasets/xstest/xstest.csv"),
     "toxicchat": DatasetSpec("toxicchat", TIER_A, "lmsys/toxic-chat", "toxicchat0124", "test",
-                             norm_toxicchat, approx_rows=5083,
+                             norm_toxicchat, approx_rows=4972,
                              notes="real user traffic, naturally low toxic base rate"),
     "wildguardtest": DatasetSpec("wildguardtest", TIER_A, "allenai/wildguardmix", "wildguardtest", "test",
-                                 norm_wildguard, approx_rows=1725, gated=True,
+                                 norm_wildguard, approx_rows=1699, gated=True,
                                  notes="gated (auto-approve); accept terms on the hub first"),
     "openai_moderation": DatasetSpec("openai_moderation", TIER_A,
                                      "mmathys/openai-moderation-api-evaluation", None, "train",
-                                     norm_openai_moderation, approx_rows=1680),
+                                     norm_openai_moderation, approx_rows=1665),
 }
 
 # The two committed to git, which every gate is computed on.  The other three
