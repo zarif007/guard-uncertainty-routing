@@ -90,7 +90,7 @@ def check_torch():
         import torch
     except ImportError:
         record("torch", "torch", WARN,
-               "not installed; needed only for Phase 6 (requirements-mechanism.txt)")
+               "not installed; only encoder guards need it (requirements-encoder.txt)")
         return
     from evaluation.hardware import default_torch_dtype, torch_device
 

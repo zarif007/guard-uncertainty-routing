@@ -7,7 +7,7 @@ import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.datasets_registry import DATASETS, TIER_A, by_tier, get_spec
+from scripts.datasets_registry import by_tier, get_spec
 
 CACHE_DIR = "datasets/cache"
 NORMALIZED_DIR = "datasets/normalized"

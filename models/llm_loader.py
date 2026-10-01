@@ -1,12 +1,12 @@
 import math
 import os
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import numpy as np
 from huggingface_hub import hf_hub_download, list_repo_files
 from llama_cpp import Llama
 
-from models.registry import MODEL_CONFIGS, PRECISION_ORDER, get_config, parse_key
+from models.registry import MODEL_CONFIGS, get_config
 from models.templates import GuardTemplate, get_template, template_fingerprint
 
 

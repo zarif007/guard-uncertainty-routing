@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import pandas as pd
 
-from scripts.datasets_registry import DATASETS, get_spec
+from scripts.datasets_registry import DATASETS
 
 NORMALIZED_DIR = "datasets/normalized"
 REQUIRED_COLUMNS = {"prompt", "ground_truth"}

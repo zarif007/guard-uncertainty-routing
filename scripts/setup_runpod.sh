@@ -9,7 +9,9 @@
 set -e
 
 VOLUME=${VOLUME:-/workspace}
-REQUIRED_GB=${REQUIRED_GB:-100}
+# 60 GB covers the guard panel (34.9) plus datasets and results.
+# 100 GB is only needed if Phase 4 adds the precision ladder (45.8).
+REQUIRED_GB=${REQUIRED_GB:-60}
 
 echo "=========================================================="
 echo " RunPod bootstrap"
@@ -39,7 +41,7 @@ mkdir -p "$HF_HOME" "$MODEL_WEIGHTS_DIR"
 
 FREE_GB=$(df -BG "$VOLUME" | awk 'NR==2 {gsub("G","",$4); print $4}')
 echo ""
-echo "Free space on $VOLUME: ${FREE_GB} GB (guard panel ~35 GB, + ladder ~46 GB)"
+echo "Free space on $VOLUME: ${FREE_GB} GB (guard panel 34.9 GB; + precision ladder 45.8 GB for Phase 4)"
 if [ "$FREE_GB" -lt "$REQUIRED_GB" ]; then
     echo "  WARNING: tight. Use --evict on run_phase.py, or run fewer models per pass."
 fi
@@ -82,10 +84,9 @@ echo ""
 echo " Gated guards and datasets need a token:"
 echo "   huggingface-cli login      # or: export HF_TOKEN=hf_..."
 echo ""
-echo " Then:"
-echo "   python scripts/prefetch_models.py --models guard-panel"
-echo "   python scripts/download_datasets.py --core"
-echo "   python scripts/verify_selective.py"
-echo "   python scripts/verify_scorer.py --model reference --dataset xstest --n 40"
-echo "   MODELS=guard-panel bash scripts/run_everything.sh"
+echo " Then, in this order (docs/runbook.md has the full sequence):"
+echo "   python scripts/preflight.py --models guard-panel"
+echo "   python scripts/verify_selective.py                 # must be 13/13"
+echo "   python scripts/download_datasets.py --datasets toxicchat wildguardtest openai_moderation"
+echo "   python scripts/run_phase.py --phase 1               # GO / NO-GO"
 echo "=========================================================="

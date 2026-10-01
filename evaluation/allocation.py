@@ -33,7 +33,7 @@ exchange rate we pick (GPU-hours against a reviewer's wage) is arguable and
 dates badly.  So nothing here converts one into the other.  Policies are
 compared on a two-dimensional frontier and the reader brings their own prices.
 """
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd

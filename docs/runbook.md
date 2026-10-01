@@ -34,10 +34,15 @@ preferences; nothing here overrides them.
 git clone <this repo> && cd guard-uncertainty-routing
 python3 -m venv .venv && source .venv/bin/activate
 VOLUME=/workspace bash scripts/setup_runpod.sh
-pip install -r requirements.txt
-bash scripts/install_engine.sh
 huggingface-cli login
 ```
+
+`setup_runpod.sh` does four things: points `HF_HOME` and `MODEL_WEIGHTS_DIR` at
+the persistent volume and persists them to `~/.bashrc`, installs
+`requirements.txt`, runs `install_engine.sh`, and prints the environment
+fingerprint. Do not `pip install -r requirements.txt` separately — it is
+already done, and a second `install_engine.sh` risks replacing a working CUDA
+build.
 
 **Never run `pip install llama-cpp-python`.** It installs a CPU-only wheel that
 runs the whole experiment on the pod's host CPU without erroring. The scores

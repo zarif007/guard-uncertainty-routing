@@ -299,7 +299,6 @@ evaluation/
   calibration.py     ECE, Brier, temperature (baseline construction only)
   statistical_tests.py  bootstrap, Holm, BH, McNemar, DeLong
   threshold_analysis.py AUROC, AUPRC, ROC, TPR@FPR
-  disagreement.py    agreement matrix, flips
   hardware.py        backend detection, GPU metadata
 scripts/
   perturb.py         meaning-preserving rewordings, with a diversity guard

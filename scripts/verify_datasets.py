@@ -4,7 +4,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.datasets_registry import DATASETS, TIER_NAMES, gated_urls, get_spec
+from scripts.datasets_registry import DATASETS, gated_urls, get_spec
 
 HF_TOKEN = os.environ.get("HF_TOKEN") or None
 

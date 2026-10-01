@@ -23,7 +23,7 @@ exactly 1.0 in float64, so every prompt beyond that point becomes a tie.  The
 ranking information survives in the margin and is destroyed in the
 probability.  Comparing 1 against 2 measures that loss and costs nothing.
 """
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 import numpy as np
 import pandas as pd

@@ -43,7 +43,7 @@ guard perturbs the model without touching the prompt, which makes it a
 cleaner instability probe than paraphrasing.  Nothing else in the default
 path uses bit width.
 """
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 # --- how a guard is loaded ------------------------------------------------
 GGUF = "gguf"          # llama.cpp, via models/llm_loader.py

@@ -25,7 +25,7 @@ official templates stop one or two tokens earlier than that, so a fixed
 continuation is appended.  Everything before that point is byte-identical.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Tuple
 
 

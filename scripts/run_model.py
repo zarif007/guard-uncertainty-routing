@@ -18,7 +18,7 @@ from evaluation.hardware import (
 from evaluation.profiling import InferenceProfiler, ModelProfiler, latency_summary
 from models.llm_loader import LLMGuard, resolve_model_path
 from models.registry import HF_SEQCLS
-from models.registry import MODEL_CONFIGS, get_config
+from models.registry import get_config
 from scripts.data_loader import describe, get_dataset
 
 ERROR_ROW = {

@@ -35,7 +35,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from evaluation.hardware import detect_backend, env_fingerprint, fingerprint_hash
 from evaluation.threshold_analysis import auroc, to_labels
 from models.llm_loader import LLMGuard
-from models.registry import expand_many, get_config, sort_keys
+from models.registry import expand_many, sort_keys
 from scripts.data_loader import get_dataset, stratified_subset
 
 AGREEMENT_MIN = 0.99

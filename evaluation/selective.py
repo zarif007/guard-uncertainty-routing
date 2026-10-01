@@ -21,7 +21,7 @@ they tested.  The open question is whether anything beats *native confidence*,
 so `deferral_efficiency` is reported against both and every gate compares
 signals pairwise on the same items.
 """
-from typing import Dict, Optional, Sequence
+from typing import Dict, Sequence
 
 import numpy as np
 import pandas as pd
