@@ -37,6 +37,7 @@ was available (`preregistration.md` Amendment 1).
 | `docs/preregistration.md` | Which outcome licenses which claim. **Fixed before data** |
 | `docs/related_work.md` | Literature, and precisely where we differ |
 | `README.md` | Operating manual: install, run, interpret |
+| `docs/runbook.md` | What to run, in what order, and what decides whether you continue |
 
 `docs/archive_preregistration_quantization.md` is a historical record of the
 study this repo used to be. **Do not update it.** Its value is that it has not

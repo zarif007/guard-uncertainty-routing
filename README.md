@@ -10,6 +10,7 @@ How should a fixed oversight budget be spent?
 that are not style preferences, and the gotchas that have already cost time.
 
 Plain-language walkthrough: `docs/study_protocol.md`.
+Step-by-step operating sequence: `docs/runbook.md`.
 What each outcome licenses: `docs/preregistration.md`.
 Literature and differentiation: `docs/related_work.md`.
 
