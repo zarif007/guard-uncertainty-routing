@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from evaluation.hardware import detect_backend, env_fingerprint, fingerprint_hash
-from models.llm_loader import DEFAULT_WEIGHTS_DIR
+from models.paths import DEFAULT_WEIGHTS_DIR
 from models.registry import expand_many, get_config, sort_keys, total_disk_gb
 
 PHASES = {

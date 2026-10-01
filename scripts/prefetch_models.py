@@ -7,7 +7,7 @@ interrupted at hour three has to re-fetch, and a download failure surfaces as
 a failed phase rather than a failed download.  Pulling everything first makes
 the run itself purely compute.
 
-Files land in MODEL_WEIGHTS_DIR (see models/llm_loader.DEFAULT_WEIGHTS_DIR).
+Files land in MODEL_WEIGHTS_DIR (see models/paths.DEFAULT_WEIGHTS_DIR).
 On a pod that must be the persistent volume -- setup_runpod.sh sets it.  The
 container disk is ephemeral and the full set is ~145 GB.
 
@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from huggingface_hub import hf_hub_download, try_to_load_from_cache
 
-from models.llm_loader import BUILT_DIR, DEFAULT_WEIGHTS_DIR
+from models.paths import BUILT_DIR, DEFAULT_WEIGHTS_DIR
 from models.registry import expand_many, get_config, sort_keys
 
 

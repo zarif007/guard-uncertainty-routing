@@ -157,7 +157,7 @@ def check_models(groups):
     print("\n=== Model files ===")
     from huggingface_hub import list_repo_files, model_info
 
-    from models.llm_loader import BUILT_DIR, DEFAULT_WEIGHTS_DIR
+    from models.paths import BUILT_DIR, DEFAULT_WEIGHTS_DIR
     from models.registry import expand_many, get_config, sort_keys, total_disk_gb
 
     # On a pod this must point at the persistent volume; the container disk is

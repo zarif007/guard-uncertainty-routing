@@ -6,6 +6,7 @@ import numpy as np
 from huggingface_hub import hf_hub_download, list_repo_files
 from llama_cpp import Llama
 
+from models.paths import BUILT_DIR, DEFAULT_WEIGHTS_DIR  # noqa: F401  (re-exported)
 from models.registry import MODEL_CONFIGS, get_config
 from models.templates import GuardTemplate, get_template, template_fingerprint
 
@@ -28,19 +29,6 @@ class ModelFileNotFound(RuntimeError):
 # All three raw logits are written to the predictions CSV either way, so the
 # choice can be revisited in analysis without re-running inference.
 CONTROVERSIAL_POLICIES = ("strict", "lenient", "binary")
-
-
-# Where GGUF weights live.  Settable because a pod's container disk is
-# ephemeral and far too small for the ~145 GB model set: point this at the
-# persistent volume (setup_runpod.sh does) or the whole download is lost when
-# the pod stops.  Note that HF_HOME alone cannot do this -- hf_hub_download is
-# called with an explicit cache_dir, which takes precedence over HF_HOME.
-DEFAULT_WEIGHTS_DIR = os.environ.get("MODEL_WEIGHTS_DIR") or os.path.join("models", "weights")
-
-# Locally built GGUF variants land here.  Checking this directory
-# first means a built variant is used through its normal registry key, so
-# run_phase.py and the analysis need no special casing.
-BUILT_DIR = os.path.join(DEFAULT_WEIGHTS_DIR, "built")
 
 
 def resolve_model_path(config: dict, download_dir: str = None) -> str:
