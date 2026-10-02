@@ -47,13 +47,13 @@
   "memory_host_mb": 1493.1,
   "memory_total_memory_mb": 16457.8,
   "memory_offload_ok": true,
-  "latency_median_sec": 0.31798419915139675,
-  "latency_p25_sec": 0.31627405621111393,
-  "latency_p75_sec": 0.319670504424721,
-  "latency_p95_sec": 0.32117075715214016,
-  "latency_mean_sec": 0.31815986102653876,
-  "latency_std_sec": 0.0034975181752423395,
+  "latency_median_sec": 0.32012748904526234,
+  "latency_p25_sec": 0.3189248484559357,
+  "latency_p75_sec": 0.3213848462328315,
+  "latency_p95_sec": 0.322989565320313,
+  "latency_mean_sec": 0.3201555996470981,
+  "latency_std_sec": 0.0027562088285693846,
   "latency_n": 450,
-  "prefill_tokens_per_sec": 205.0890734631931,
-  "single_stream_prompts_per_sec": 3.1448103480257705
+  "prefill_tokens_per_sec": 203.81061953324027,
+  "single_stream_prompts_per_sec": 3.1237554856109577
 }
