@@ -48,24 +48,46 @@ is the pod. Or run `nvidia-smi` — it only works on the pod.
 
 ## B. Create the pod — [LAPTOP, in the browser]
 
-- [ ] **B1.** **Network volume first.** Storage → Network Volumes → New.
-      **60 GB** (100 GB if you will run Phase 4). Note which region it is in —
-      network volumes are region-locked and the pod must be in the same region.
+- [ ] **B1. Pick the GPU first, then the region, then the volume.** Network
+      volumes exist **only in Secure Cloud**, and consumer cards (RTX 4090,
+      3090, 5090) live almost entirely in Community Cloud -- so they vanish
+      from the list as soon as a network volume is involved. That is a
+      product boundary, not a stock shortage. Use a datacenter card.
 
-- [ ] **B2.** Deploy a pod in **that region**, attaching the volume at
-      `/workspace`.
+      Peak demand is ~18 GB: Qwen3Guard-Gen-8B is 16.4 GB at fp16, plus a
+      small GQA KV cache at `n_ctx=4096` and compute buffers. Guards are
+      scored one at a time, so that is the whole requirement.
 
-      | | Pick |
-      |---|---|
-      | GPU | 24 GB VRAM minimum (RTX A5000, RTX 4090). 48 GB (L40S, A6000) is comfier |
-      | Type | **On-demand, not spot** — see B4 |
-      | Template | A PyTorch or CUDA template. Any recent one is fine |
+      Each prompt is a **single forward pass** -- `logits_all=False`, read the
+      "safe"/"unsafe" token logits, no generation loop. That is pure prefill,
+      which is compute-bound, so FP16 throughput matters more than memory
+      bandwidth.
 
-- [ ] **B3.** Check the template exposes **TCP port 22**. Without it you only
+      | Pick | VRAM | Rough $/hr | Verdict |
+      |---|---|---|---|
+      | **RTX A6000** or **A40** | 48 GB | ~$0.40-0.80 | **Safest.** Most abundant in Secure Cloud, comfortable headroom |
+      | **RTX 6000 Ada** or **L40S** | 48 GB | ~$0.75-0.90 | **Faster.** Same AD102 silicon as each other; ~2x the FP16 throughput of an A6000, so ~3 hrs instead of ~5.5. Slightly less abundant -- see B5 |
+      | **RTX A5000** | 24 GB | ~$0.26-0.36 | **Budget.** Fits with ~6 GB spare. No room for surprises |
+      | L4 | 24 GB | ~$0.43 | Skip -- weak at prefill and no cheaper than an A5000 |
+      | A100 / H100 | 80 GB | $1.20+ | Skip -- overkill, and scarcer (see B5) |
+
+      Prices drift; treat them as rough. The whole study is ~5.5 GPU-hours, so
+      the spread between these is under two dollars. **Choose for availability,
+      not price** -- B5 explains why.
+
+- [ ] **B2. Network volume**, in the region where that card is actually
+      available. Storage -> Network Volumes -> New. **60 GB** (100 GB if you
+      will run Phase 4). Volumes are region-locked and the pod must be in the
+      same region.
+
+- [ ] **B3.** Deploy the pod in that region, attaching the volume at
+      `/workspace`. Use a PyTorch or CUDA template; any recent one is fine.
+
+- [ ] **B4.** Check the template exposes **TCP port 22**. Without it you only
       get RunPod's limited proxy SSH (no file transfer). The web terminal
       always works as a fallback.
 
-- [ ] **B4.** Understand the one-pod rule before you start. The cost model
+- [ ] **B5.** Understand the one-pod rule before you start. The cost model
       prices each guard by **measured latency**, and latency only means
       something within one machine. Every prediction row carries an `env_hash`
       over `(backend, gpu_name, driver_version, llama_cpp_version, processor)`.
@@ -75,6 +97,11 @@ is the pod. Or run `nvidia-smi` — it only works on the pod.
 
       Phases 1–3 are about 5.5 GPU-hours, so this is a $3–6 experiment. Do not
       save a dollar on a spot instance and lose the run.
+
+      This is also why B1 says choose for availability. `env_hash` pins
+      `gpu_name`: if the pod dies mid-Phase-3 you need **the same GPU model
+      again** or you re-score from scratch. A scarce card turns a restart
+      into a re-run.
 
 ---
 
@@ -126,6 +153,15 @@ is the pod. Or run `nvidia-smi` — it only works on the pod.
 
 - [ ] **D4.** **Write down the `env_hash`** it prints at the end. Every
       prediction file must carry it.
+
+      **Expect step [2/4] to be slow on a CUDA 12.8 / Ubuntu 24.04 template.**
+      `install_engine.sh` asks the prebuilt index for a `cu124` wheel, which is
+      correct -- CUDA minor versions are forward-compatible, so a cu124 build
+      runs fine on a 12.8 driver. But Ubuntu 24.04 is Python 3.12, and
+      llama-cpp-python 0.3.16 predates the generic `py3` wheels, so if no cp312
+      wheel exists pip falls back to compiling from source (10-20 min). The
+      script does this automatically. It only fails if `nvcc` is absent from
+      the image; E1 is what tells you either way.
 
 - [ ] **D5.** Never run `pip install llama-cpp-python` yourself, now or later.
       It gives a CPU-only wheel that runs the whole experiment on the pod's
