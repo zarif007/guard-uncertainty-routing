@@ -1,0 +1,3 @@
+model,signal,human_budget,n,errors_total,errors_caught,errors_residual,residual_error_rate,baseline_error_rate,risk_reduction,inferences_per_decision,compute_per_decision,compute_total,reviews_per_decision,on_frontier
+llama-guard-3-8b:fp16,conf_native,0.05,650,48,16,32,0.04923076923076923,0.07384615384615385,0.3333333333333333,1.0,0.31858367286622524,207.0793873630464,0.05,True
+llama-guard-3-8b:fp16,conf_margin,0.05,650,48,16,32,0.04923076923076923,0.07384615384615385,0.3333333333333333,1.0,0.31858367286622524,207.0793873630464,0.05,False

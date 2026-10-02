@@ -1,0 +1,11 @@
+claim,gate,observed,status
+Native guard confidence is usable for routing review,gate_s1,NATIVE_USABLE,LICENSED
+The logit margin beats the probability for routing review,gate_s2,NO_DIFFERENCE,NOT_LICENSED
+An alternative signal beats native confidence,gate_s3,NATIVE_IS_BEST,NOT_LICENSED
+Native confidence is already near the practical ceiling,gate_s3,NATIVE_IS_BEST,LICENSED
+Behavioural instability carries information confidence cannot express,gate_s4,NOT_EVALUABLE,NOT_TESTED
+The kind of guard determines whether its confidence is usable,gate_s5,NOT_EVALUABLE,NOT_TESTED
+"At matched compute, a cheaper guard with better selection beats the default",gate_a1,DEFAULT_IS_BEST,NOT_LICENSED
+"At matched compute, better selection beats the default on the same guard",gate_a1,DEFAULT_IS_BEST,NOT_LICENSED
+The default deployment is already the best use of the budget,gate_a1,DEFAULT_IS_BEST,LICENSED
+The best oversight policy depends on the review budget,gate_a2,ONE_POLICY_WINS,NOT_LICENSED

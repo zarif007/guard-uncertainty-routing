@@ -1,0 +1,2 @@
+model,n,frac_pinned,frac_at_zero,frac_at_one,n_interior,n_interior_unique,p_iqr,margin_iqr,margin_abs_median,interior_resolution,verdict
+llama-guard-3-8b:fp16,650,0.6,0.2569230769230769,0.34307692307692306,260,258,0.9987755539955342,14.963161945343018,7.608587265014648,0.9923076923076923,USABLE

@@ -1,0 +1,2 @@
+model,n,error_rate,accuracy,flag_rate,base_rate,auroc,auroc_on_margin
+llama-guard-3-8b:fp16,650,0.07384615384615385,0.9261538461538461,0.5692307692307692,0.6153846153846154,0.98617,0.98617
