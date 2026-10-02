@@ -9,7 +9,8 @@
   "n_rows": 650,
   "signals": [
     "conf_native",
-    "conf_margin"
+    "conf_margin",
+    "conf_stability"
   ],
   "headline_budget": 0.05,
   "cost_basis": "latency",
@@ -143,17 +144,17 @@
     "gate": "S3",
     "status": "NATIVE_IS_BEST",
     "per_signal": {
-      "conf_margin": {
+      "conf_stability": {
         "llama-guard-3-8b:fp16": {
-          "delta_aurc": 0.0,
-          "ci_lo": 0.0,
-          "ci_hi": 0.0,
+          "delta_aurc": 0.013803046040277135,
+          "ci_lo": 0.02755420737404739,
+          "ci_hi": 0.08765239996892389,
           "p_a_better": 0.0,
           "n_boot": 2000,
-          "signal": "conf_margin",
+          "signal": "conf_stability",
           "baseline": "conf_native",
-          "n": 650,
-          "n_errors": 48,
+          "n": 450,
+          "n_errors": 43,
           "p_holm": 1.0,
           "survives_correction": false,
           "material": false,
@@ -162,14 +163,22 @@
       }
     },
     "winners": {
-      "conf_margin": []
+      "conf_stability": []
     },
     "reason": "no alternative signal beat native confidence after correction"
   },
   "gate_s4": {
     "gate": "S4",
-    "status": "NOT_EVALUABLE",
-    "reason": "stability signal not computed"
+    "status": "REDUNDANT_WITH_MARGIN",
+    "per_model": {
+      "llama-guard-3-8b:fp16": {
+        "correlation_with_margin": 0.5077550716289659,
+        "n_saturated": 0,
+        "saturated_deferral_efficiency": null
+      }
+    },
+    "mean_abs_correlation": 0.5077550716289659,
+    "reason": "stability largely restates the margin; its extra cost is not justified"
   },
   "gate_s5": {
     "gate": "S5",
@@ -189,7 +198,7 @@
     "gate_s1": "NATIVE_USABLE",
     "gate_s2": "NO_DIFFERENCE",
     "gate_s3": "NATIVE_IS_BEST",
-    "gate_s4": "NOT_EVALUABLE",
+    "gate_s4": "REDUNDANT_WITH_MARGIN",
     "gate_s5": "NOT_EVALUABLE"
   }
 }
