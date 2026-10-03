@@ -435,3 +435,228 @@ provenance are in `docs/`. Gates are verified against synthetic data with known
 answers (13/13) and that check is re-run after any change to the analysis code.
 Claims are licensed by a generated table rather than curated by hand; claims the
 table does not license are not made here.
+
+---
+
+## References
+
+Annotated for reading. Each entry says **what they did**, **what we found**, and
+**the difference**. Read-status is from `docs/related_work.md`: only Safety-Flag
+has been read in full. Do not cite a `SNIPPET` entry as if read — read it first
+or drop it.
+
+> **Verify every ID before submission.** The 2026-dated arXiv identifiers are
+> transcribed from `related_work.md`; the older ones are reconstructed and must
+> be checked against the actual listing.
+
+### A. The direct neighbour — read this first
+
+**[1] Safety-Flag: A Unified Benchmark for the Reliability and Calibration of
+LLM Content Moderators.** arXiv:2609.19072. `READ IN FULL 2026-09-28`
+<https://arxiv.org/abs/2609.19072>
+
+- **What they did.** Seven safety benchmarks (BeaverTails, XSTest, Ethics,
+  WildGuard, Aegis, ToxiChat, ToxiGen) under one balanced flag/do-not-flag
+  protocol. Thirteen models — six general-purpose LLMs, four dedicated guards
+  (incl. Llama Guard 3 8B), three reference models, **all generative**. Three
+  dimensions: error direction, probability calibration, confidence-based error
+  ranking. AURC is their primary metric. ~1,400 items, ~50/50 harmful/benign.
+  Item-level decisions and confidence scores released.
+- **Their finding.** Token-logprob confidence lowers error for every model, and
+  gives the lowest AURC of the signals they test. Temperature scaling improves
+  calibration numbers **without changing prediction ordering**.
+- **Where we agree.** Our S1 replicates them on models they did not test
+  (deferral efficiency 0.667–0.745, 3/3 usable). Our S2 is their temperature
+  observation in a sharper form: the logit margin is a strictly monotone
+  transform of the probability and ranks identically to seven decimals.
+- **The difference, and it is the reason this paper exists.** They have **no
+  cost analysis of any kind** — no latency, no compute budget, no comparison of
+  spending compute against spending reviewer time. And they report risk only at
+  50%, 80% and 100% coverage on a 50/50-balanced protocol. Risk@0.5 means a
+  human reviews half of all traffic. We occupy 1–20% review at a 7.1% base rate
+  (ToxicChat), which their design cannot address.
+- **Read §4 (confidence signals), §5.5 Table 15 (risk at coverage), and
+  Appendix D.1 — see [2].**
+
+**[2] Safety-Flag, Appendix D.1 — the headwind.** Same paper.
+
+- **What they did.** Compared "sampled-answer agreement" (five stochastic
+  generations per item, scored on verdict agreement) against token-logprob
+  confidence. Token-logprob wins on **all six** models (their Table 14): e.g.
+  Qwen2.5-32B 0.048 vs 0.115, Gemma-2-9B 0.082 vs 0.163, Llama-3.1-8B 0.300 vs
+  0.427.
+- **Why it matters to us.** A reviewer will ask why paraphrase-consistency
+  should succeed where sample-consistency failed. Our §5.5 outcome is, in
+  direction, **consistent with theirs** — behavioural signals lost — and we say
+  so rather than claiming a reversal.
+- **The difference.** They vary the *decoder*; we vary the *input*. A guard
+  scored greedily on one label token has no sampling variance at all, so their
+  signal is unavailable to us. More importantly, we identify **why** ours failed
+  — a length mechanism (§5.5) they could not observe, since their items are
+  short and balanced.
+
+### B. Uncertainty and selective prediction
+
+**[3] Investigating the Impact of Model Instability on Explanations and
+Uncertainty.** arXiv:2402.13006. `SNIPPET`
+<https://arxiv.org/pdf/2402.13006>
+
+- **What they did.** Examples that flip under perturbation already carry higher
+  baseline uncertainty.
+- **The threat.** If instability merely restates a small margin, it costs ~6–10x
+  inference for nothing. Our gate S4 was built specifically to detect this.
+- **The difference.** We never got to test it on realistic inputs. Our
+  perturbation family was refused by a diversity gate on three of five datasets
+  — and *that refusal became the result* (§5.5). Their hypothesis remains open
+  for length-proportional perturbations.
+
+**[4] Entropy Alone is Insufficient for Safe Selective Prediction in LLMs.**
+arXiv:2603.21172. `SNIPPET` <https://arxiv.org/pdf/2603.21172>
+
+- **What they did.** Entropy is a weak uncertainty signal for safe selective
+  prediction.
+- **Relation.** Supports searching beyond the obvious signal, which motivated
+  our five-signal design. Our conclusion is bleaker: every alternative we could
+  price is bounded, and the binding constraint is error identification (§6).
+
+**[5] Uncertainty-Aware Abstention in LLMs with Provable Alignment Guarantees.**
+arXiv:2607.04430. `SNIPPET` <https://arxiv.org/pdf/2607.04430>
+
+- **What they did.** Abstention with provable guarantees.
+- **The difference.** For *generation*, not for a moderation classifier, and
+  with no human-review budget and no cost axis.
+
+**[6] Semantic Uncertainty / semantic entropy.** Kuhn, Gal & Farquhar, ICLR
+2023, arXiv:2302.09664, and successors. `SNIPPET — VERIFY ID`
+
+- **What they did.** Semantic-invariant perturbation sampling for hallucination
+  detection. **The technique behind our signal 3.**
+- **The difference.** The method is established; applying it to guard
+  error-routing is what is new. We do not claim the technique. We report the
+  condition under which it fails to transfer: input length (§5.5).
+
+### C. Guardrail evaluation and operating points
+
+**[7] Artificial Analysis guardrail benchmark.** Industry, not peer-reviewed.
+`SNIPPET` <https://artificialanalysis.ai/articles/guardrail-safety-benchmark>
+
+- **What they report.** Some reasoning guards have verdict probabilities
+  "almost perfectly polarized, with 99.8% of scores pinned at zero or one,
+  leaving no range to tune a threshold," retaining ~10% recall at a 1% FPR
+  budget.
+- **We measured it and it does not hold for our guards.** 12–37% pinned, interior
+  resolution 0.87–0.97, all three `USABLE`. Median |margin| 4.0–5.8 against the
+  ~37 needed for float64 sigmoid saturation.
+- **The difference.** Treat this as **motivation, not evidence**. It is the
+  premise that justifies behavioural signals, and on our models the premise is
+  false. Safety-Flag independently found dedicated guards better calibrated than
+  general-purpose models.
+
+**[8] Reasoning's Razor.** arXiv:2510.21049. `SNIPPET`
+<https://arxiv.org/pdf/2510.21049>
+
+- **What they did.** Reasoning improves accuracy but can hurt recall at critical
+  operating points in safety and hallucination detection.
+- **Relation.** Our closest methodological relative — operating-point-aware
+  evaluation of safety detectors. Their independent variable is reasoning; ours
+  is the oversight budget.
+
+**[9] Safety Under Scaffolding.** arXiv:2603.10044. `SNIPPET`
+<https://arxiv.org/pdf/2603.10044>
+
+- **What they did.** Apparent large safety differences turn out to be
+  measurement artifacts; scores are sensitive to how answers are extracted.
+- **Our closest ally in framing.** Same shape of argument, different cause: our
+  §5.6 shows a guard with strictly better AUROC (0.9615 vs 0.9226) is the worse
+  deployment (0.1157 vs 0.1049) because its operating point over-flags.
+
+**[10] CPU-deployable safety classification.** arXiv:2608.21570. `SNIPPET`
+<https://arxiv.org/pdf/2608.21570>
+
+- **What they argue.** A *fixed* decision threshold for cross-model comparison,
+  explicitly forbidding tuning each model to its own operating point.
+- **This is the objection we must answer**, and §5.6 is where. We do not say
+  fixed thresholds are wrong. We say a fixed-threshold number is a *joint*
+  measurement of discrimination and operating point, and reporting it alone
+  makes the two indistinguishable. We report both. Write this as a paragraph,
+  not a footnote.
+
+**[11] When Benchmarks Lie.** arXiv:2602.14161. `SNIPPET`
+<https://arxiv.org/pdf/2602.14161>
+
+- **What they did.** Malicious-prompt classifiers under true distribution shift.
+- **Relation.** Adjacent to our §5.5: HarmBench produces **zero** unanimous
+  failures while long-form sets produce 5%. A benchmark can be silent about a
+  failure mode it holds fixed.
+
+### D. The guards
+
+**[12] Llama Guard.** Inan et al., arXiv:2312.06674; model card for
+Llama-Guard-3-8B. `SNIPPET — VERIFY ID`
+<https://huggingface.co/meta-llama/Llama-Guard-3-8B>
+
+- Our reference guard and the size axis (1B). The card reports int8 at F1
+  0.936–0.939 with "negligible impact" — **at a fixed threshold**, the statistic
+  that cannot separate preserved discrimination from a moved operating point.
+
+**[13] Qwen3Guard Technical Report.** arXiv:2510.14276. `SNIPPET`
+<https://arxiv.org/html/2510.14276v1>
+
+- Our replication family. Relevant to §5.6: Qwen3Guard-Gen-8B has the best AUROC
+  in our panel and the worse deployed error rate.
+
+**[14] Llama Guard 3-1B-INT4.** arXiv:2411.17713. `SNIPPET`
+<https://arxiv.org/pdf/2411.17713>
+
+- Pruning plus 4-bit for mobile. Reports improved safety *and* efficiency.
+  Context for why a 1B guard is a live deployment option — which makes our
+  result that it never wins at any budget worth stating.
+
+### E. Datasets — **all IDs need verifying**
+
+**[15] ToxicChat.** Lin et al., EMNLP Findings 2023, arXiv:2310.17389.
+*Our headline set: 4,972 rows, 7.1% harmful, real user traffic.*
+
+**[16] HarmBench.** Mazeika et al., ICML 2024, arXiv:2402.04249.
+*200 rows, all harmful. Produces zero unanimous failures (§5.5) — the key
+negative control.*
+
+**[17] XSTest.** Röttger et al., NAACL 2024, arXiv:2308.01263.
+*450 rows, benign-but-borderline. The only set where perturbation was
+measurable.*
+
+**[18] WildGuard.** Han et al., NeurIPS D&B 2024, arXiv:2406.18495.
+*1,699 rows. Highest unanimous-failure rate (5.12%) and 70 of our 89
+safety-critical false negatives.*
+
+**[19] OpenAI Moderation.** Markov et al., AAAI 2023, arXiv:2208.03274.
+*1,665 rows. Longest prompts (645 mean chars) and the largest length gap between
+unanimous failures and the rest (967 vs 363).*
+
+### F. Method
+
+**[20] Selective classification / risk–coverage.** El-Yaniv & Wiener, JMLR 2010;
+Geifman & El-Yaniv, NeurIPS 2017. `VERIFY`
+*Source of the risk–coverage curve and AURC, our primary instrument — shared
+with Safety-Flag, which is what makes the comparison checkable.*
+
+**[21] Holm, S. (1979).** A simple sequentially rejective multiple test
+procedure. *Scandinavian Journal of Statistics* 6(2), 65–70.
+*Our multiple-comparison correction in S3. Only the 1B guard's agreement result
+survives it.*
+
+---
+
+### Reading order
+
+If you read four things, read these:
+
+1. **[1] Safety-Flag in full** — it defines the space you are in.
+2. **[2] its Appendix D.1** — the specific result a reviewer will quote at you.
+3. **[10] CPU-deployable safety classification** — the methodological objection
+   to how you compare guards.
+4. **[9] Safety Under Scaffolding** — the framing to borrow.
+
+[3], [6] and [7] are the three you must read before claiming anything about
+perturbation or polarization, because each one either predicts your result or
+supplies the premise you overturned.
