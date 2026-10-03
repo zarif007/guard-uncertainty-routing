@@ -383,9 +383,101 @@ be written as one.
 
 ---
 
-## 9. Limitations to state in the write-up
+## 9. Where the panel is blind (exploratory)
 
-### 9.1 Panel compute was mispriced, and is now fixed
+Post-hoc characterisation of the 256 unanimous failures from §6.3. This is the
+only section that describes a *set of inputs* rather than a bound on a method.
+
+### 9.1 Direction and location
+
+| | count |
+|---|---:|
+| benign flagged harmful (false positive) | 167 |
+| **harmful passed as safe (false negative)** | **89** |
+
+| dataset | n | unanimously wrong | rate | share of 256 |
+|---|---:|---:|---:|---:|
+| wildguardtest | 1,699 | 87 | **5.12%** | 34% |
+| openai_moderation | 1,665 | 82 | **4.92%** | 32% |
+| xstest | 450 | 11 | 2.44% | 4% |
+| toxicchat | 4,972 | 76 | 1.53% | 30% |
+| **harmbench** | 200 | **0** | **0.00%** | 0% |
+
+**harmbench produces no unanimous failures at all.** On the short, curated,
+all-harmful benchmark the panel never fails together. Every unanimous failure
+comes from realistic or long-form traffic.
+
+### 9.2 The guards are *confidently* wrong
+
+Median distance from the decision threshold, |p - 0.5| (0.5 is maximal
+confidence):
+
+| guard | all prompts | unanimously wrong | unanimously right |
+|---|---:|---:|---:|
+| llama-guard-3-1b | 0.482 | 0.459 | 0.493 |
+| llama-guard-3-8b | 0.497 | 0.465 | 0.499 |
+| qwen3guard-gen-8b | 0.496 | 0.480 | 0.497 |
+
+When the panel is unanimously wrong it is **confidently** wrong: 0.459-0.480
+against 0.493-0.499 when right, both near the 0.5 ceiling.
+
+> No confidence-based routing can reach these cases, because confidence does
+> not separate them. This is why the 2.85% floor is a floor and not a budget
+> problem.
+
+### 9.3 Length is the axis, and it holds within datasets
+
+Median prompt length, unanimous failures against the rest of the same dataset:
+
+| dataset | unanimously wrong | rest | ratio |
+|---|---:|---:|---:|
+| openai_moderation | 967.5 | 363.0 | 2.7x |
+| wildguardtest | 548.0 | 235.5 | 2.3x |
+| toxicchat | 83.0 | 59.0 | 1.4x |
+| xstest | 45.0 | 42.0 | 1.1x |
+
+Not a composition artifact -- the effect is present inside each long-form
+dataset. Pooled by length quintile:
+
+| quintile | median chars | unanimous-failure rate |
+|---|---:|---:|
+| Q1 shortest | 30 | 0.65% |
+| Q2 | 53 | 2.17% |
+| Q3 | 93 | 3.07% |
+| Q4 | 259 | 2.28% |
+| **Q5 longest** | **869** | **6.12%** |
+
+Roughly **9x** from shortest to longest quintile.
+
+The 89 safety-critical false negatives are concentrated in wildguardtest (70 of
+89, 79%), median length 182 characters against 93 overall.
+
+### 9.4 One axis explains two independent findings
+
+Length also governs the perturbation result (§7.2): effective variants fell
+5.0 -> 2.0 as mean prompt length rose 44 -> 645 characters, rank correlation
+-1.0.
+
+So the same variable drives both:
+
+| long inputs | consequence |
+|---|---|
+| cheap perturbation collapses | the behavioural signal becomes unmeasurable |
+| the panel fails together | the agreement signal has nothing to flag |
+
+> **Guard oversight degrades with input length from both directions at once:
+> the signals that would route a case for review stop working exactly where the
+> panel stops catching it.** Short curated benchmarks (harmbench, xstest) are
+> blind to this, which is why it has not been reported.
+
+That is a property of the *inputs*, not of any method, and it is the finding
+most likely to survive a change of models.
+
+---
+
+## 10. Limitations to state in the write-up
+
+### 10.1 Panel compute was mispriced, and is now fixed
 
 `compute_per_decision` for ensemble signals was `deciding guard's latency x
 member count`, which prices three identical forward passes differently
@@ -403,7 +495,7 @@ compute column of the A2 table and the frontier figure do change. Both
 versions are kept: `tables_repriced/` is primary, `tables_no_stability/` is the
 pre-fix comparison.
 
-### 9.2 Remaining limitations
+### 10.2 Remaining limitations
 2. **A1's "default" is an artifact of measured latency**, not of what teams
    deploy. On different hardware Llama-Guard-3-8B could become the default and
    A1 would invert. State the hardware.
@@ -421,7 +513,7 @@ pre-fix comparison.
 
 ---
 
-## 10. Suggested paper framing
+## 11. Suggested paper framing
 
 **Title direction:** *What a fixed oversight budget actually buys: pricing
 guard size, cross-model checking and human review on one frontier.*
