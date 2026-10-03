@@ -115,9 +115,34 @@ def signal_multiplier(signal: str, df: pd.DataFrame,
     return float("nan")
 
 
+def ensemble_compute_cost(df: pd.DataFrame, members: Sequence[str],
+                          basis: str = "latency") -> float:
+    """
+    What one decision costs when a panel votes: the SUM of its members' unit
+    costs, not the deciding guard's cost times the member count.
+
+    The distinction matters.  A panel runs every member on every prompt, so its
+    price is a property of the panel, not of whichever member is nominated to
+    decide.  Pricing it as `deciding_guard x n` undercharges a panel decided by
+    a cheap guard and overcharges one decided by an expensive guard -- for the
+    identical three forward passes.  That error flows straight into the
+    matched-compute comparison in equal_compute_comparison().
+    """
+    costs = [guard_unit_cost(df, m, basis=basis) for m in members]
+    if not costs or not all(np.isfinite(c) for c in costs):
+        return float("nan")
+    return float(np.sum(costs))
+
+
 def policy_row(df: pd.DataFrame, model: str, signal: str, budget: float,
-               unit_cost: float, multiplier: float) -> Optional[Dict]:
-    """One (guard, signal, human budget) policy, priced and scored."""
+               unit_cost: float, multiplier: float,
+               compute_cost: Optional[float] = None) -> Optional[Dict]:
+    """
+    One (guard, signal, human budget) policy, priced and scored.
+
+    `compute_cost` overrides `unit_cost * multiplier` for signals whose price
+    is not a multiple of the deciding guard's -- see ensemble_compute_cost().
+    """
     sub = df[df["model"] == model]
     if signal not in sub.columns:
         return None
@@ -134,6 +159,8 @@ def policy_row(df: pd.DataFrame, model: str, signal: str, budget: float,
     caught = errors_caught(errors, sub[signal].to_numpy(), budget) if budget > 0 else 0
     residual = total - caught
     n = len(sub)
+    per_decision = (unit_cost * multiplier if compute_cost is None
+                    else float(compute_cost))
     return {
         "model": model,
         "signal": signal,
@@ -148,8 +175,8 @@ def policy_row(df: pd.DataFrame, model: str, signal: str, budget: float,
         "risk_reduction": (total - residual) / total,
         # Compute price, in guard-inferences and in measured units.
         "inferences_per_decision": multiplier,
-        "compute_per_decision": unit_cost * multiplier,
-        "compute_total": unit_cost * multiplier * n,
+        "compute_per_decision": per_decision,
+        "compute_total": per_decision * n,
         "reviews_per_decision": budget,
     }
 
@@ -174,8 +201,14 @@ def allocation_table(
                 members=ensemble_members.get(signal), model=model)
             if not np.isfinite(mult):
                 continue
+            members = ensemble_members.get(signal)
+            # A panel's price is the panel's, not the deciding guard's x k.
+            compute = (ensemble_compute_cost(df, members, cost_basis)
+                       if signal in (MODEL_AGREE, PRECISION_AGREE) and members
+                       else None)
             for budget in budgets:
-                row = policy_row(df, model, signal, budget, unit, mult)
+                row = policy_row(df, model, signal, budget, unit, mult,
+                                 compute_cost=compute)
                 if row:
                     rows.append(row)
     return pd.DataFrame(rows)

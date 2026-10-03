@@ -1,0 +1,279 @@
+{
+  "models": [
+    "llama-guard-3-8b:fp16",
+    "qwen3guard-gen-8b:fp16",
+    "llama-guard-3-1b:fp16"
+  ],
+  "datasets": [
+    "harmbench",
+    "openai_moderation",
+    "toxicchat",
+    "wildguardtest",
+    "xstest"
+  ],
+  "n_rows": 26958,
+  "signals": [
+    "conf_native",
+    "conf_margin",
+    "conf_model_agree"
+  ],
+  "headline_budget": 0.05,
+  "cost_basis": "latency",
+  "hardware_consistency": {
+    "status": "CONSISTENT",
+    "reason": "all predictions share one environment",
+    "environments": [
+      {
+        "env_hash": "6ccc83087810",
+        "backend": "cuda",
+        "gpu_name": "NVIDIA L40S",
+        "n_rows": 26958,
+        "models": [
+          "llama-guard-3-1b:fp16",
+          "llama-guard-3-8b:fp16",
+          "qwen3guard-gen-8b:fp16"
+        ]
+      }
+    ],
+    "scores_comparable": true
+  },
+  "score_range": {
+    "check": "score_range",
+    "status": "USABLE",
+    "reason": "scores span the interval; threshold-free analysis is meaningful"
+  },
+  "gate_a1": {
+    "gate": "A1",
+    "status": "CHEAPER_GUARD_WINS",
+    "human_budget": 0.05,
+    "default": {
+      "model": "qwen3guard-gen-8b:fp16",
+      "signal": "conf_native",
+      "residual_error_rate": 0.09325617627420432,
+      "compute_per_decision": 0.3723042197525501
+    },
+    "best_alternative": {
+      "model": "llama-guard-3-8b:fp16",
+      "signal": "conf_native",
+      "residual_error_rate": 0.08324059648341865,
+      "compute_ratio": 0.857084064520416
+    },
+    "relative_risk_reduction": 0.1073985680190931,
+    "reason": "llama-guard-3-8b:fp16 + conf_native ships 10.7% fewer bad decisions than qwen3guard-gen-8b:fp16 + conf_native at 0.86x its compute"
+  },
+  "gate_a2": {
+    "gate": "A2",
+    "status": "BUDGET_DEPENDENT",
+    "winners_by_budget": {
+      "0.0": {
+        "model": "llama-guard-3-8b:fp16",
+        "signal": "conf_native",
+        "residual_error_rate": 0.10494101936345426,
+        "compute_per_decision": 0.3190960139036178
+      },
+      "0.01": {
+        "model": "llama-guard-3-8b:fp16",
+        "signal": "conf_native",
+        "residual_error_rate": 0.09993322946806144,
+        "compute_per_decision": 0.3190960139036178
+      },
+      "0.02": {
+        "model": "llama-guard-3-8b:fp16",
+        "signal": "conf_native",
+        "residual_error_rate": 0.09626085021144001,
+        "compute_per_decision": 0.3190960139036178
+      },
+      "0.05": {
+        "model": "llama-guard-3-8b:fp16",
+        "signal": "conf_native",
+        "residual_error_rate": 0.08324059648341865,
+        "compute_per_decision": 0.3190960139036178
+      },
+      "0.1": {
+        "model": "qwen3guard-gen-8b:fp16",
+        "signal": "conf_model_agree",
+        "residual_error_rate": 0.06343200534164256,
+        "compute_per_decision": 0.7934602396562694
+      },
+      "0.2": {
+        "model": "qwen3guard-gen-8b:fp16",
+        "signal": "conf_model_agree",
+        "residual_error_rate": 0.03761406632539506,
+        "compute_per_decision": 0.7934602396562694
+      },
+      "0.5": {
+        "model": "llama-guard-3-8b:fp16",
+        "signal": "conf_native",
+        "residual_error_rate": 0.01123970620965947,
+        "compute_per_decision": 0.3190960139036178
+      }
+    },
+    "n_distinct_winners": 2,
+    "crossover_observed": true,
+    "reason": "2 different policies win at different budgets"
+  },
+  "gate_s1": {
+    "gate": "S1",
+    "status": "NATIVE_USABLE",
+    "per_model": {
+      "llama-guard-3-1b:fp16": {
+        "deferral_efficiency": 0.6732296113630353,
+        "tie_fraction": 0.001112842198976185,
+        "usable": true
+      },
+      "llama-guard-3-8b:fp16": {
+        "deferral_efficiency": 0.7452347815516672,
+        "tie_fraction": 0.0008902737591809482,
+        "usable": true
+      },
+      "qwen3guard-gen-8b:fp16": {
+        "deferral_efficiency": 0.6672447531371988,
+        "tie_fraction": 0.0026708212775428445,
+        "usable": true
+      }
+    },
+    "n_usable": 3,
+    "n_models": 3,
+    "reason": "3/3 models have usable native confidence"
+  },
+  "gate_s2": {
+    "gate": "S2",
+    "status": "NO_DIFFERENCE",
+    "per_model": {
+      "llama-guard-3-1b:fp16": {
+        "delta_aurc": 1.765855600632804e-08,
+        "ci_lo": 0.0,
+        "ci_hi": 7.029443818869219e-08,
+        "p_a_better": 0.0,
+        "n_boot": 2000,
+        "signal": "conf_margin",
+        "baseline": "conf_native",
+        "n": 8986,
+        "n_errors": 1614,
+        "verdict": "NO_DIFFERENCE"
+      },
+      "llama-guard-3-8b:fp16": {
+        "delta_aurc": 0.0,
+        "ci_lo": 0.0,
+        "ci_hi": 0.0,
+        "p_a_better": 0.0,
+        "n_boot": 2000,
+        "signal": "conf_margin",
+        "baseline": "conf_native",
+        "n": 8986,
+        "n_errors": 943,
+        "verdict": "NO_DIFFERENCE"
+      },
+      "qwen3guard-gen-8b:fp16": {
+        "delta_aurc": -1.2941530409815716e-08,
+        "ci_lo": -5.160768072852429e-08,
+        "ci_hi": 0.0,
+        "p_a_better": 0.2775,
+        "n_boot": 2000,
+        "signal": "conf_margin",
+        "baseline": "conf_native",
+        "n": 8986,
+        "n_errors": 1040,
+        "verdict": "NO_DIFFERENCE"
+      }
+    },
+    "n_better": 0,
+    "n_evaluable": 3,
+    "reason": "margin beats native probability on 0/3 models"
+  },
+  "gate_s3": {
+    "gate": "S3",
+    "status": "ALTERNATIVE_BEATS_NATIVE",
+    "per_signal": {
+      "conf_model_agree": {
+        "llama-guard-3-1b:fp16": {
+          "delta_aurc": -0.014156624312624745,
+          "ci_lo": -0.02011046773331547,
+          "ci_hi": -0.008549046864186534,
+          "p_a_better": 1.0,
+          "n_boot": 2000,
+          "signal": "conf_model_agree",
+          "baseline": "conf_native",
+          "n": 8986,
+          "n_errors": 1614,
+          "p_holm": 0.0,
+          "survives_correction": true,
+          "material": true,
+          "verdict": "BETTER"
+        },
+        "llama-guard-3-8b:fp16": {
+          "delta_aurc": 0.01581328135806946,
+          "ci_lo": 0.010108271612556459,
+          "ci_hi": 0.02041534692506966,
+          "p_a_better": 0.0,
+          "n_boot": 2000,
+          "signal": "conf_model_agree",
+          "baseline": "conf_native",
+          "n": 8986,
+          "n_errors": 943,
+          "p_holm": 1.0,
+          "survives_correction": false,
+          "material": false,
+          "verdict": "NO_DIFFERENCE"
+        },
+        "qwen3guard-gen-8b:fp16": {
+          "delta_aurc": 0.009174150019823753,
+          "ci_lo": -0.0011041294987426424,
+          "ci_hi": 0.0102554652535611,
+          "p_a_better": 0.06,
+          "n_boot": 2000,
+          "signal": "conf_model_agree",
+          "baseline": "conf_native",
+          "n": 8986,
+          "n_errors": 1040,
+          "p_holm": 1.0,
+          "survives_correction": false,
+          "material": false,
+          "verdict": "NO_DIFFERENCE"
+        }
+      }
+    },
+    "winners": {
+      "conf_model_agree": [
+        "llama-guard-3-1b:fp16"
+      ]
+    },
+    "reason": "conf_model_agree wins on 1 model(s)"
+  },
+  "gate_s4": {
+    "gate": "S4",
+    "status": "NOT_EVALUABLE",
+    "reason": "stability signal not computed"
+  },
+  "gate_s5": {
+    "gate": "S5",
+    "status": "NOT_EVALUABLE",
+    "per_model": {
+      "llama-guard-3-1b:fp16": {
+        "kind": "generative",
+        "deferral_efficiency": 0.6732296113630353,
+        "tie_fraction": 0.001112842198976185
+      },
+      "llama-guard-3-8b:fp16": {
+        "kind": "generative",
+        "deferral_efficiency": 0.7452347815516672,
+        "tie_fraction": 0.0008902737591809482
+      },
+      "qwen3guard-gen-8b:fp16": {
+        "kind": "generative",
+        "deferral_efficiency": 0.6672447531371988,
+        "tie_fraction": 0.0026708212775428445
+      }
+    },
+    "reason": "only one kind of guard present: ['generative']"
+  },
+  "evidence": {
+    "gate_a1": "CHEAPER_GUARD_WINS",
+    "gate_a2": "BUDGET_DEPENDENT",
+    "gate_s1": "NATIVE_USABLE",
+    "gate_s2": "NO_DIFFERENCE",
+    "gate_s3": "ALTERNATIVE_BEATS_NATIVE",
+    "gate_s4": "NOT_EVALUABLE",
+    "gate_s5": "NOT_EVALUABLE"
+  }
+}
