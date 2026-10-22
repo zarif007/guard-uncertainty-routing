@@ -210,7 +210,7 @@ The logit margin -- free to compute and hypothesised to carry ranking
 information destroyed by sigmoid saturation -- is *identical* to the
 probability. AUROC and AUROC-on-margin agree to seven decimal places on all
 three guards (delta AURC <= 1.8e-08). The saturation never occurred: median
-|margin| is 4.0-5.8, far short of the ~37 at which float64 sigmoid pins to 1.0,
+`|margin|` is 4.0-5.8, far short of the ~37 at which float64 sigmoid pins to 1.0,
 and only 12-37% of scores are pinned at all.
 
 The premise motivating behavioural signals -- that guard scores are degenerate
@@ -230,6 +230,8 @@ The premise motivating behavioural signals -- that guard scores are degenerate
 The expensive signal wins in a **middle band only**, at 2.5x the compute. The
 pattern is not monotone in budget, and §7 reports a mechanism for the band that
 we proposed and then rejected.
+
+![FIG:fig1_budget_crossover.png|Residual risk against human review budget for four policies. The 8B guard on its own confidence wins below 10% review and at 50%; the three-guard panel wins only in the 10-20% band, at 2.5x the compute. Inset magnifies the crossover. The 1B guard never wins at any budget.]
 
 **The 1B guard never wins at any budget.** Our principal pre-registered
 hypothesis is not supported.
@@ -277,6 +279,8 @@ best available escalation signal captures none of this.
 
 The bottleneck is not compute, which is cheap and was spent freely here. It is
 the inability to identify which decisions are wrong.
+
+![FIG:fig2_identification_gap.png|The identification gap. Error bars are 95% bootstrap intervals over 2,000 resamples. Escalating on the 1B guard's own confidence is indistinguishable from the 8B alone. Escalating on an oracle cuts error 26.3% at half the compute. Everything between the dotted lines is available and uncaptured.]
 
 ### 5.5 Where the panel is blind, and why length is the axis
 
@@ -329,6 +333,8 @@ measured (XSTest), instability lost outright -- AURC 0.0295 against native's
 0.0157, catching 10 errors at 5% review where native caught 12, at six times the
 compute.
 
+![FIG:fig3_length_axis.png|Input length governs both failures. (a) The rate at which all three guards agree and all three are wrong, by prompt length quintile: 0.65% at 30 characters rising to 6.12% at 869. (b) Usable rewordings per prompt against mean prompt length, by dataset; the three datasets below the usability threshold are the three long-form ones, and could not be scored.]
+
 > **Guard oversight degrades with input length from both directions at once.**
 > The signals that would route a case for review stop working exactly where the
 > panel stops catching it. This is a property of the inputs, not of a method,
@@ -346,6 +352,8 @@ deployed error rate (0.1157 vs 0.1049), because its operating point over-flags:
 31.4% flagged against a 22.5% base rate. **Selecting a guard by AUROC picks
 Qwen; selecting by deployed residual risk picks Llama-Guard-3-8B.** Guard
 evaluations predominantly report the former.
+
+![FIG:fig4_auroc_vs_error.png|Ranking quality against deployed error. Qwen3Guard-Gen-8B ranks best and deploys worst, because it flags 31.4% of traffic against a 22.5% base rate.]
 
 ---
 
