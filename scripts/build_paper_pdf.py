@@ -54,13 +54,15 @@ def styles():
         "quote": mk("quote", leftIndent=11, rightIndent=8, fontName="Times-Italic",
                     textColor=ACCENT, spaceBefore=5, spaceAfter=6),
         "caption": mk("caption", fontSize=8, leading=10.5, spaceBefore=4,
-                      spaceAfter=10, textColor=MUTED),
+                      spaceAfter=1.5, textColor=MUTED),
         "cell": mk("cell", fontSize=8, leading=10.2, spaceAfter=0,
                    alignment=TA_LEFT),
         "cellh": mk("cellh", fontName="Times-Bold", fontSize=8, leading=10.2,
                     spaceAfter=0, alignment=TA_LEFT),
         "meta": mk("meta", fontName="Times-Italic", fontSize=8.5, leading=11,
                    textColor=MUTED, spaceAfter=9, alignment=TA_LEFT),
+        "src": mk("src", fontSize=7, leading=9, spaceBefore=0, spaceAfter=11,
+                  textColor=colors.HexColor("#8a8a8a"), alignment=TA_LEFT),
         "code": mk("code", fontName="Courier", fontSize=8.2, leading=11,
                    alignment=TA_LEFT, leftIndent=9, spaceBefore=4,
                    spaceAfter=7, textColor=colors.HexColor("#24292e")),
@@ -89,7 +91,11 @@ def figure(name, caption, st, width):
     img = Image(path, width=w, height=w * ih / iw)
     n = figure.counter = getattr(figure, "counter", 0) + 1
     cap = Paragraph(f"<b>Figure {n}.</b> {inline(caption)}", st["caption"])
-    return [KeepTogether([Spacer(1, 4), img, cap])]
+    # The source path, so the figure can be found when porting to LaTeX.
+    src = Paragraph(
+        f'<font face="Courier" size="7">results/paper_figures/{name}</font>',
+        st["src"])
+    return [KeepTogether([Spacer(1, 4), img, cap, src])]
 
 
 def table(rows, st, width):
