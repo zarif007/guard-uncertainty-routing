@@ -270,7 +270,7 @@ def main():
     doc = SimpleDocTemplate(a.output, pagesize=A4,
                             leftMargin=22 * mm, rightMargin=22 * mm,
                             topMargin=20 * mm, bottomMargin=20 * mm,
-                            title="Where Guard Oversight Fails",
+                            title="Buy the Better Guard",
                             author="")
     width = doc.width
     doc.build(parse(md, st, width), onFirstPage=footer, onLaterPages=footer)

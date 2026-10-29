@@ -1,4 +1,4 @@
-# Where Guard Oversight Fails: Input Length Degrades Error Detection and Panel Agreement Together
+# Buy the Better Guard: What a Fixed Oversight Budget Buys in Safety Moderation
 
 *Draft. Every number traced to `results/tables_repriced/`; see `docs/findings.md`
 for the table-by-table provenance.*
@@ -8,34 +8,37 @@ for the table-by-table provenance.*
 ## Abstract
 
 Content-moderation guard models make mistakes, and deployments cover for them by
-routing uncertain decisions to human reviewers. Which decisions to route, and
-whether the compute spent identifying them would be better spent on a larger
-guard, is an allocation question that has not been priced. We evaluate three
-generative guards (Llama-Guard-3-1B/8B, Qwen3Guard-Gen-8B) on five moderation
-datasets, 26,958 predictions in a single hardware environment, under a
-pre-registered protocol fixed before any data was collected. Policies are
-compared on residual risk -- errors reaching users after review -- against two
-cost axes that we deliberately never convert into one another.
+routing uncertain decisions to human reviewers. A fixed oversight budget can buy
+a larger guard, compute spent checking the guard's answer, or more reviewer
+hours. These compete, and nobody has priced them against each other. We do,
+over 26,958 predictions from three generative guards on five moderation
+datasets in one hardware environment, under a protocol pre-registered before any
+data was collected.
 
-Three results. First, the best policy depends on the review budget: a single 8B
-guard on its own confidence wins at 1-5% and 50% review, while a three-guard
-agreement panel wins only at 10-20%, at 2.5x the compute. Second, there is a
-large and precisely estimated *identification gap*: routing each prompt to the
-guard that will answer it correctly would reduce error 26.3% (95% CI [23.6,
-29.2]) at half the compute of the 8B alone, and the best available escalation
-signal captures none of it (realised gain 95% CI [-0.0017, +0.0012]). Third,
-and we argue most consequentially, both failures share an axis. The 2.85% of
-prompts on which all three guards agree *and are wrong* are confidently wrong,
-are absent entirely from short curated benchmarks, and grow roughly ninefold
-from the shortest to the longest length quintile; the same length variable
-destroys the behavioural perturbation signal (rank correlation -1.0 between mean
-prompt length and usable variant count).
+**The answer is to buy the better guard.** At 1%, 2% and 5% human review, and
+again at 50%, the single strongest guard ranked by its own free confidence
+ships the fewest bad decisions. A three-guard agreement panel wins only in a
+10-20% band and costs 2.5x the compute to do it. The smallest guard never wins
+at any budget, so our pre-registered hypothesis, that a cheap guard with
+expensive checking beats an expensive guard with free checking, is not
+supported.
+
+The useful part is why. Every alternative we priced is bounded, and not by
+compute, which is cheap and which we spent freely. Routing each prompt to the
+guard that would answer it correctly would cut error 26.3% (95% CI [23.6, 29.2])
+at half the compute of the larger guard alone, and the best available escalation
+signal captures none of it (realised gain 95% CI [-0.0017, +0.0012]). The
+binding constraint is identifying which decisions are wrong, and we show where
+that identification breaks down: on 2.85% of prompts all three guards agree and
+all three are wrong, they are confidently wrong, none of them occur on the short
+curated benchmark in our set, and the rate grows roughly ninefold from the
+shortest to the longest length quintile. Input length destroys the behavioural
+perturbation signal on the same axis (rank correlation -1.0 against usable
+variant count).
 
 On long inputs the signals that would route a case for review stop working
-exactly where the panel stops catching it. Short curated benchmarks cannot
-observe this, which we suggest is why it has not been reported.
-
----
+exactly where the panel stops catching it. Short curated benchmarks hold that
+variable fixed and cannot observe either effect.
 
 ## 1. Introduction
 
@@ -57,19 +60,23 @@ reports risk only at 50%, 80% and 100% coverage on a protocol balanced ~50/50 by
 construction. The regime an operator inhabits -- 1-20% review at a 1-7% base
 rate -- is untouched.
 
-This paper occupies that regime and prices it. Our contributions:
+This paper occupies that regime and answers the question for it. Our aim is an
+answer a practitioner can act on, not a framework. Contributions, in the order
+they matter:
 
-1. **An oversight frontier.** Every (guard, routing signal, review budget)
-   policy priced on two axes that are never converted into one another, over
-   26,958 predictions in one hardware environment (§3).
-2. **Budget-dependent policy selection** (§5.2). The winner changes with the
-   review budget, non-monotonically.
-3. **The identification gap** (§5.4). We separate what routing *could* buy from
-   what available signals *do* buy, with bootstrap intervals. The gap is large
-   and the capture is statistically zero.
-4. **A length axis for guard-oversight failure** (§5.5). Unanimous panel failure
-   and behavioural-signal collapse are both governed by input length, which
-   short curated benchmarks hold fixed.
+1. **The answer** (§5.1). At the review rates deployments run, buy the better
+   guard and spend nothing on routing. The one exception is a 10-20% band where
+   a three-guard panel pays, at 2.5x the compute. The smallest guard never wins.
+2. **A price for every alternative** (§3, §5). Each (guard, routing signal,
+   review budget) policy costed on two axes that are never converted into one
+   another, over 26,958 predictions in one hardware environment. The prior work
+   contains no cost analysis of any kind.
+3. **Why the alternatives lose: the identification gap** (§5.4). We separate
+   what routing *could* buy from what available signals *do* buy, with bootstrap
+   intervals. The gap is large and the capture is statistically zero.
+4. **Where identification breaks down: input length** (§5.5). Unanimous panel
+   failure and behavioural-signal collapse are governed by the same variable,
+   which short curated benchmarks hold fixed.
 
 **Pre-registration.** The hypotheses, decision thresholds and gate structure
 were committed to a public document while the results directory was empty, and
@@ -88,7 +95,7 @@ benchmarks reliability and calibration of content moderators across seven
 datasets and thirteen models, reporting AURC as its primary instrument. It
 establishes that token-logprob confidence is usable and that temperature
 scaling improves calibration numbers without changing prediction ordering. We
-replicate the first finding (§5.1) and our §5.1 result on the logit margin is
+replicate the first finding (§5.2) and our §5.2 result on the logit margin is
 the second in a sharper form.
 
 Its Appendix D.1 is a direct headwind for behavioural signals: sampled-answer
@@ -111,7 +118,7 @@ obvious signal.
 **Polarized guard scores.** An industry benchmark reports verdict probabilities
 "almost perfectly polarized, with 99.8% of scores pinned at zero or one" for
 some guards. We measured this on our own models rather than assuming it, and it
-does not hold: 12-37% pinned, with usable interior resolution throughout (§5.1).
+does not hold: 12-37% pinned, with usable interior resolution throughout (§5.2).
 Safety-Flag likewise found dedicated guards better calibrated than
 general-purpose models.
 
@@ -201,48 +208,60 @@ the allocation gate, 0.01 AURC for signal comparisons.
 
 ## 5. Results
 
-### 5.1 Native confidence is usable, and the margin is exactly the probability
-
-All three guards have usable native confidence (deferral efficiency 0.667-0.745,
-tie fractions below 0.003), replicating Safety-Flag on models it did not test.
-
-The logit margin -- free to compute and hypothesised to carry ranking
-information destroyed by sigmoid saturation -- is *identical* to the
-probability. AUROC and AUROC-on-margin agree to seven decimal places on all
-three guards (delta AURC <= 1.8e-08). The saturation never occurred: median
-`|margin|` is 4.0-5.8, far short of the ~37 at which float64 sigmoid pins to 1.0,
-and only 12-37% of scores are pinned at all.
-
-The premise motivating behavioural signals -- that guard scores are degenerate
--- does not hold for these guards. It should be measured rather than assumed.
-
-![FIG:fig1_risk_coverage.png|Risk-coverage curves for native confidence on all three guards, pooled over the five datasets. Risk among retained decisions falls as coverage drops, confirming S1 on models Safety-Flag did not test. The shaded band marks the 1-20% review regime this study occupies; Safety-Flag reports only 50%, 80% and 100% coverage.]
-
-### 5.2 The best policy depends on the review budget
+### 5.1 The answer: buy the better guard
 
 | Review budget | Winning policy | Residual | Compute |
 |---:|---|---:|---:|
-| 1% | Llama-Guard-3-8B + native | 0.0999 | 0.319 |
-| 2% | Llama-Guard-3-8B + native | 0.0963 | 0.319 |
-| 5% | Llama-Guard-3-8B + native | 0.0832 | 0.319 |
-| **10%** | **Qwen3Guard-8B + panel agreement** | **0.0634** | **0.793** |
-| **20%** | **Qwen3Guard-8B + panel agreement** | **0.0376** | **0.793** |
-| 50% | Llama-Guard-3-8B + native | 0.0112 | 0.319 |
+| 1% | Llama-Guard-3-8B + own confidence | 0.0999 | 0.319 |
+| 2% | Llama-Guard-3-8B + own confidence | 0.0963 | 0.319 |
+| 5% | Llama-Guard-3-8B + own confidence | 0.0832 | 0.319 |
+| **10%** | **Qwen3Guard-8B + 3-guard panel** | **0.0634** | **0.793** |
+| **20%** | **Qwen3Guard-8B + 3-guard panel** | **0.0376** | **0.793** |
+| 50% | Llama-Guard-3-8B + own confidence | 0.0112 | 0.319 |
 
-The expensive signal wins in a **middle band only**, at 2.5x the compute. The
-pattern is not monotone in budget, and §7 reports a mechanism for the band that
-we proposed and then rejected.
+At three of the four budgets a deployment would actually run, and again at 50%,
+the winner is a single guard using the confidence it already produces. It costs
+one forward pass and no new infrastructure.
 
-![FIG:fig2_budget_crossover.png|Residual risk against human review budget for four policies. The 8B guard on its own confidence wins below 10% review and at 50%; the three-guard panel wins only in the 10-20% band, at 2.5x the compute. Inset magnifies the crossover. The 1B guard never wins at any budget.]
+The one exception is a **10-20% band** where a three-guard agreement panel wins,
+at **2.5x the compute**. The pattern is not monotone in budget, and §7 reports a
+mechanism for the band that we proposed and then rejected.
 
-**The 1B guard never wins at any budget.** Our principal pre-registered
-hypothesis is not supported.
+**The smallest guard never wins at any budget.** Our pre-registered hypothesis,
+that a cheap guard with expensive checking beats an expensive guard with free
+checking, is not supported.
 
-### 5.3 Panel agreement is two-valued and helps only the weakest guard
+![FIG:fig1_budget_crossover.png|The answer, and its one exception. Residual risk against human review budget for four policies. The 8B guard on its own confidence wins below 10% review and at 50%; the three-guard panel wins only in the 10-20% band, at 2.5x the compute. Inset magnifies the crossover. The 1B guard never wins at any budget.]
+
+The rest of this section is about **why** the alternatives lose, because that is
+the part that transfers to guards we did not test.
+
+### 5.2 The free signals work, and cannot be improved on for free
+
+All three guards have usable native confidence (deferral efficiency 0.667-0.745,
+tie fractions below 0.003), replicating Safety-Flag on models it did not test.
+This is why §5.1's answer is not a statement that routing is useless: the free
+signal already works.
+
+![FIG:fig2_risk_coverage.png|Risk-coverage curves for native confidence on all three guards, pooled over the five datasets. Risk among retained decisions falls as coverage drops, confirming S1 on models Safety-Flag did not test. The shaded band marks the 1-20% review regime this study occupies; Safety-Flag reports only 50%, 80% and 100% coverage.]
+
+The other free signal buys nothing. The logit margin, hypothesised to carry
+ranking information destroyed by sigmoid saturation, is *identical* to the
+probability: AUROC and AUROC-on-margin agree to seven decimal places on all
+three guards (delta AURC <= 1.8e-08). The saturation never occurred. Median
+`|margin|` is 4.0-5.8, far short of the ~37 at which float64 sigmoid pins to
+1.0, and only 12-37% of scores are pinned at all.
+
+So the premise that motivates behavioural signals, that guard scores are
+degenerate, does not hold for these guards. It should be measured rather than
+assumed.
+
+### 5.3 The panel pays only in a band, and only for the weakest guard
 
 With three guards voting, modal agreement takes two values. The tie fraction is
 1.0000 on every guard and every dataset: the signal partitions traffic into a
-flagged block and an unflagged one and imposes no order within either.
+flagged block and an unflagged one and imposes no order within either. That
+coarseness is why it can win only where the budget happens to suit it.
 
 The flagged block is 23.8% of traffic (2,141 prompts) and contains 72.9-84.1% of
 each guard's errors. But the benefit is not uniform:
@@ -260,11 +279,12 @@ disagreement helps" is commonly asserted without this split.
 
 ![FIG:fig3_agreement_forest.png|Change in AURC from adding three-guard agreement, with 95% bootstrap intervals and Holm-corrected p-values. Only the 1B guard improves. The point estimate runs the wrong way for both 8B guards, neither surviving correction.]
 
-### 5.4 The identification gap
+### 5.4 How much is being left on the table
 
-Every policy above has one guard decide every prompt. We additionally evaluate a
-cascade -- the 1B decides what it can, escalating low-confidence cases to the 8B
--- recomputed from the existing predictions with no new inference.
+The policies above all have one guard decide every prompt. We additionally
+evaluate a cascade, where the 1B decides what it can and escalates
+low-confidence cases to the 8B, recomputed from the existing predictions with no
+new inference.
 
 | policy | error | 95% CI | compute |
 |---|---:|---|---:|
@@ -274,29 +294,29 @@ cascade -- the 1B decides what it can, escalating low-confidence cases to the 8B
 
 Bootstrap over prompts, 2,000 resamples:
 
-- **Realised** gain (8B - cascade): **-0.0002, CI [-0.0017, +0.0012]** -- straddles zero.
-- **Available** gain (8B - oracle): **+0.0276, CI [+0.0243, +0.0309]** -- excludes zero.
+- **Realised** gain (8B - cascade): **-0.0002, CI [-0.0017, +0.0012]**, straddles zero.
+- **Available** gain (8B - oracle): **+0.0276, CI [+0.0243, +0.0309]**, excludes zero.
 
 The two guards fail on sufficiently different cases that perfect routing between
 them would cut error **26.3% [23.6%, 29.2%]** at **half** the 8B's compute. The
-best available escalation signal captures none of this.
+best available escalation signal captures none of it.
 
-The bottleneck is not compute, which is cheap and was spent freely here. It is
-the inability to identify which decisions are wrong.
+So the reason to buy the guard rather than the routing is not that routing has
+little to offer. It has a great deal to offer. It is that nothing available
+collects it.
 
 ![FIG:fig4_identification_gap.png|The identification gap. Error bars are 95% bootstrap intervals over 2,000 resamples. Escalating on the 1B guard's own confidence is indistinguishable from the 8B alone. Escalating on an oracle cuts error 26.3% at half the compute. Everything between the dotted lines is available and uncaptured.]
 
-### 5.5 Where the panel is blind, and why length is the axis
+### 5.5 Where identification breaks down, and why it is input length
 
 On 2.85% of prompts (256) all three guards agree **and all three are wrong**:
 167 benign prompts flagged, and 89 harmful prompts admitted. Three properties
-make this set more than a residual.
+explain why no confidence-based policy in §5.1 could have found them.
 
 **They are confidently wrong.** Median |p - 0.5| is 0.459-0.480 when the panel
-is unanimously wrong against 0.493-0.499 when it is unanimously right -- both
-near the 0.5 ceiling. No confidence-based routing can reach them, because
-confidence does not separate them. This is why the 2.85% is a floor rather than
-a budget shortfall.
+is unanimously wrong against 0.493-0.499 when it is unanimously right, both near
+the 0.5 ceiling. Confidence does not separate them, so no amount of review
+budget spent on a confidence ranking reaches them.
 
 **Short curated benchmarks cannot see them.** HarmBench contributes **zero**
 unanimous failures. Every one of the 256 comes from realistic or long-form
@@ -314,13 +334,14 @@ traffic:
 length of unanimous failures against the rest of the same dataset: 967 vs 363
 characters (OpenAI-Moderation), 548 vs 236 (WildGuardTest), 83 vs 59
 (ToxicChat). Pooled by length quintile, the unanimous-failure rate runs 0.65%
-(median 30 chars), 2.17%, 3.07%, 2.28%, **6.12%** (median 869 chars) -- roughly
+(median 30 chars), 2.17%, 3.07%, 2.28%, **6.12%** (median 869 chars), roughly
 ninefold from shortest to longest.
 
-The same variable governs the behavioural signal. Our perturbation family --
-meaning-preserving surface edits: inserted greetings, expanded contractions,
-opener substitutions -- produced too few distinguishable variants to score on
-three of five datasets, and the diversity gate refused them before inference:
+The same variable governs the behavioural signal we could not price. Our
+perturbation family, meaning-preserving surface edits such as inserted
+greetings, expanded contractions and opener substitutions, produced too few
+distinguishable variants to score on three of five datasets, and the diversity
+gate refused them before inference:
 
 | dataset | mean prompt chars | usable variants (of 6) |
 |---|---:|---:|
@@ -333,7 +354,7 @@ three of five datasets, and the diversity gate refused them before inference:
 Rank correlation between mean prompt length and usable variant count is
 **-1.0**. The mechanism is arithmetic: a surface edit is a fixed-size change, so
 its relative magnitude is that size divided by prompt length. Where it could be
-measured (XSTest), instability lost outright -- AURC 0.0295 against native's
+measured (XSTest), instability lost outright: AURC 0.0295 against native's
 0.0157, catching 10 errors at 5% review where native caught 12, at six times the
 compute.
 
@@ -344,12 +365,14 @@ compute.
 > panel stops catching it. This is a property of the inputs, not of a method,
 > and short curated benchmarks hold the variable fixed.
 
-### 5.6 Discrimination is not deployment
+### 5.6 A warning about how the guard is chosen
+
+§5.1 says buy the better guard. This section is about what "better" has to mean.
 
 Gate A1 reports that one guard beats another at matched compute by 10.7%. The
 comparison is Llama-Guard-3-8B against Qwen3Guard-Gen-8B, *both using native
-confidence* -- there is no difference in selection, and we do not present this
-as an allocation result. What it does show is worth separating:
+confidence*. There is no difference in selection, so we do not present this as
+an allocation result. What it does show is worth separating.
 
 Qwen3Guard has the highest AUROC of the three (0.9615 vs 0.9226) and the worse
 deployed error rate (0.1157 vs 0.1049), because its operating point over-flags:
@@ -363,7 +386,14 @@ evaluations predominantly report the former.
 
 ## 6. Discussion
 
-Five routes to reducing residual risk were priced, and each is bounded:
+**The recommendation.** At review budgets below 10%, run the strongest single
+guard on its own confidence and spend nothing on routing. Between 10% and 20%, a
+three-guard panel is worth 2.5x the compute. Above that, go back to the single
+guard. Choose that guard by deployed residual risk at your operating point, not
+by AUROC (§5.6).
+
+**Why it holds.** Five routes to reducing residual risk were priced, and each is
+bounded:
 
 | route | bound |
 |---|---|
@@ -373,23 +403,23 @@ Five routes to reducing residual risk were priced, and each is bounded:
 | cascaded escalation | captures 0 of 0.0276 available headroom |
 | any panel routing | 2.85% unanimous-failure floor, confidently wrong |
 
-None is a compute limit. Each is a failure to identify which decisions are
-wrong. The practical recommendation that follows is unglamorous: at review
-budgets below 10%, run the best single guard on its own confidence and spend
-nothing on routing, because nothing available beats it.
+None is a compute limit. Compute is cheap and we spent it freely. Each is a
+failure to identify which decisions are wrong, and §5.4 puts a number on what
+that failure costs: 26.3% of error, available and uncollected.
 
-The length result suggests where effort should go instead. If unanimous failure
-and signal collapse are both governed by input length, then evaluation on short
-curated benchmarks systematically understates both, and progress requires
-length-proportional perturbations -- which means a paraphrase model, which
-reintroduces a confound we deliberately excluded: a paraphraser can sanitise a
-harmful prompt, making a flipped verdict uninterpretable.
+**Where to spend effort instead.** If unanimous failure and signal collapse are
+both governed by input length, then evaluation on short curated benchmarks
+systematically understates both, and progress requires length-proportional
+perturbations. That means a paraphrase model, which reintroduces a confound we
+deliberately excluded: a paraphraser can sanitise a harmful prompt, making a
+flipped verdict uninterpretable. Resolving that confound is the next problem,
+not finding a sixth signal.
 
 ---
 
 ## 7. A mechanism we proposed and rejected
 
-The natural explanation for the 10-20% band in §5.2 is that the signal is
+The natural explanation for the 10-20% band in §5.1 is that the signal is
 exhausted once the review budget exceeds its flag rate, predicting that the band
 *ends* at the flag rate. We tested it: three guards give three pairs plus the
 triple, each panel with its own flag rate, residuals recomputed over a 1-50%
@@ -427,9 +457,12 @@ not where it stops *leading*. We report this rather than omitting it.
 ## 9. Conclusion
 
 Given a fixed oversight budget for a safety guard, at the review rates
-deployments actually run, the answer is to buy the better guard and spend
-nothing on routing. Everything we priced that costs more does not beat it
-outside a narrow band.
+deployments actually run, **buy the better guard and spend nothing on routing**.
+Everything we priced that costs more fails to beat it outside a narrow 10-20%
+band, and the smallest guard never wins at all.
+
+That answer is unglamorous, and it was not the one we pre-registered. What makes
+it worth having is the price list behind it and the reason underneath it.
 
 The reason is identifiable and quantified: perfect routing between two guards we
 already have would cut error by a quarter at half the compute, and no available
