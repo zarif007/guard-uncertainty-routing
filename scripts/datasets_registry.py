@@ -1,37 +1,9 @@
-"""
-The datasets this paper scores, and how to normalize each into the same shape.
-
-Scope note.  This registry once held 25 specs across six tiers (over-refusal,
-category/severity, adversarial, multilingual, response-level).  Those tiers
-answered Phase 8 questions -- different tasks, reported in their own tables --
-and none of them fed the four gates.  They were removed rather than left
-declared but unused; the git history has them if Phase 8 is ever picked up.
-
-What is left is the five prompt-level English safety sets the paper actually
-runs.  They all ask one question -- given a prompt, is it harmful? -- so
-pooling them is legitimate and the pooled AUROC means something.  Mixing in a
-multilingual or response-level set would not be: the gates would then answer
-"which uncertainty signal works across a grab-bag of different tasks", which
-is not a question anyone asked.  Routing human review is a per-deployment
-decision, and a deployment sees one kind of traffic.
-"""
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
 TIER_A = "A"
 
-TIER_NAMES = {
-    TIER_A: "core prompt-level safety",
-}
 
-
-# approx_rows is the count AFTER normalization, measured by materializing each
-# set (2026-10-01), not the total quoted by the source paper.  The normalizers
-# drop rows whose label does not map onto safe/unsafe -- wildguard skips any
-# prompt_harm_label outside harmful/unharmful, for instance -- so these run a
-# little below the published figures.  Recorded as measured because a row count
-# that does not match what the loader returns is how a sample-size claim in a
-# paper stops being checkable.
 @dataclass
 class DatasetSpec:
     name: str
@@ -45,13 +17,7 @@ class DatasetSpec:
     notes: str = ""
     approx_rows: int = 0
     verified: bool = False
-    # Gated on the Hub.  All of these are 'auto' gating: accepting the terms on
-    # the dataset page grants access immediately, no manual review.
     gated: bool = False
-
-    @property
-    def hub_url(self) -> str:
-        return f"https://huggingface.co/datasets/{self.hf_id}" if self.hf_id else ""
 
 
 def _row(prompt, label, category=None, language="en", source_extra=None):
@@ -123,42 +89,9 @@ DATASETS: Dict[str, DatasetSpec] = {
                                      norm_openai_moderation, approx_rows=1665),
 }
 
-# The two committed to git, which every gate is computed on.  The other three
-# scale the sample so Gate C's equivalence test has the power to return a
-# verdict instead of UNDERPOWERED.
-CORE_DATASETS = ["harmbench", "xstest"]
-
-
-def gated_datasets() -> List[str]:
-    return sorted(name for name, spec in DATASETS.items() if spec.gated)
-
-
-def gated_urls() -> Dict[str, str]:
-    """Dataset page per gated repo, deduplicated -- one click each."""
-    urls = {}
-    for name, spec in DATASETS.items():
-        if spec.gated and spec.hf_id:
-            urls.setdefault(spec.hf_id, spec.hub_url)
-    return urls
-
-
-def by_tier(tier: str) -> List[str]:
-    return [name for name, spec in DATASETS.items() if spec.tier == tier]
-
 
 def get_spec(name: str) -> DatasetSpec:
     key = name.lower()
     if key not in DATASETS:
         raise ValueError(f"Unknown dataset '{name}'. Known: {sorted(DATASETS)}")
     return DATASETS[key]
-
-
-def tier_summary() -> str:
-    lines = []
-    for tier in sorted(TIER_NAMES):
-        lines.append(f"Tier {tier} - {TIER_NAMES[tier]}")
-        for name in by_tier(tier):
-            spec = DATASETS[name]
-            mark = "verified" if spec.verified else "unverified"
-            lines.append(f"  {name:<22} {spec.hf_id or 'local':<48} ~{spec.approx_rows:>7} rows  [{mark}]")
-    return "\n".join(lines)

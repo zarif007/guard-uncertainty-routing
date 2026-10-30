@@ -1,5 +1,5 @@
 """
-The five uncertainty signals we compare.
+The four uncertainty signals we compare.
 
 Every signal is expressed as CONFIDENCE, not uncertainty: higher means the
 guard's decision is more trustworthy.  `evaluation.selective` keeps the most
@@ -10,11 +10,10 @@ consistent or the curve is computed backwards.
   2 margin        the raw logit gap, before the sigmoid squashes it
   3 stability     does the verdict survive rewording the message?
   4 model_agree   do several different guards agree?
-  5 precision_agree  does the same guard agree with itself across quantizations?
 
 Signals 1 and 2 are free -- they are already in every prediction file.
-Signal 3 costs k extra forward passes per prompt.  Signals 4 and 5 cost one
-extra run per additional model, which the sweep produces anyway.
+Signal 3 costs k extra forward passes per prompt.  Signal 4 costs one
+extra run per additional model.
 
 Why signal 2 is not redundant with signal 1
 -------------------------------------------
@@ -32,10 +31,9 @@ NATIVE = "conf_native"
 MARGIN = "conf_margin"
 STABILITY = "conf_stability"
 MODEL_AGREE = "conf_model_agree"
-PRECISION_AGREE = "conf_precision_agree"
 
 FREE_SIGNALS = [NATIVE, MARGIN]
-ALL_SIGNALS = [NATIVE, MARGIN, STABILITY, MODEL_AGREE, PRECISION_AGREE]
+ALL_SIGNALS = [NATIVE, MARGIN, STABILITY, MODEL_AGREE]
 
 
 def native_confidence(df: pd.DataFrame, temperature: float = 1.0) -> pd.Series:
@@ -97,16 +95,9 @@ def agreement_confidence(df: pd.DataFrame, members: Sequence[str],
     """
     Fraction of `members` landing on the modal verdict for each prompt.
 
-    Used for both signal 4 (different guards) and signal 5 (one guard at
-    several precisions).  They are the same computation over a different
-    member set, and they mean different things:
-
-      signal 4  different architectures with different decision boundaries, so
-                disagreement partly measures "these are different models"
-                rather than "this case is hard".  Interpret with care.
-      signal 5  one model perturbed by quantization.  No boundary difference
-                to confound it, and no paraphrase to change the meaning, which
-                makes it the cleaner of the two.
+    Different architectures have different decision boundaries, so
+    disagreement partly measures "these are different models" rather than
+    "this case is hard".  Interpret with care.
     """
     sub = df[df[model_column].isin(members)]
     if sub.empty:
@@ -127,7 +118,6 @@ def attach_signals(
     df: pd.DataFrame,
     perturbed: Optional[pd.DataFrame] = None,
     model_members: Optional[Sequence[str]] = None,
-    precision_members: Optional[Sequence[str]] = None,
     temperature: float = 1.0,
 ) -> pd.DataFrame:
     """
@@ -151,9 +141,6 @@ def attach_signals(
     if model_members:
         out[MODEL_AGREE] = out["prompt_id"].map(
             agreement_confidence(df, model_members))
-    if precision_members:
-        out[PRECISION_AGREE] = out["prompt_id"].map(
-            agreement_confidence(df, precision_members))
     return out
 
 

@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this code or data, please cite it as below."
+title: "Buy the Better Guard: What a Fixed Oversight Budget Buys in Safety Moderation"
+authors:
+  - family-names: "Huq"
+    given-names: "Md. Zariful"
+repository-code: "https://github.com/zarif007/guard-uncertainty-routing"
+license: MIT
+version: "1.0.0"

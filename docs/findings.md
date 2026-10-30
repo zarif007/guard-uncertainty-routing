@@ -1,10 +1,10 @@
 # Findings
 
-Written from `results/tables_repriced/` (the primary analysis) on 2026-10-03.
-`tables_no_stability/` is the same analysis before the panel-pricing fix of
-§9.1 and is kept for comparison; `tables/` additionally includes the
-xstest-only stability signal and should not be used.
-Every number here is traceable to a generated table; none is quoted from memory.
+Written from `results/tables/` on 2026-10-03, updated 2026-10-31.
+`evaluation/analyze.py` writes the gate tables; `evaluation/paper.py` writes
+`results/tables/exploratory.json` and the paper figures, and reproduces every
+exploratory number the paper uses (§6-§9). The three-tier table in §8.1 was
+computed ad hoc and is not in the paper.
 
 **Provenance.** 26,958 predictions = 3 guards x 8,986 prompts x 5 datasets, all
 scored on one machine (`env_hash 6ccc83087810`, NVIDIA L40S, CUDA). Hardware
@@ -32,13 +32,12 @@ wrong.** A perfect escalation signal would cut error 26% at half the compute
 (§8.2); the best measured signal captures none of that.
 
 What is new is the pricing: the alternatives were run, measured on one machine,
-and costed in both units. The prior work in `related_work.md` does none of this.
+and costed in both units. The prior work (Safety-Flag) does none of this.
 
 ## 2. What the pre-registered gates returned
 
 These are confirmatory. The thresholds (`MIN_AURC_IMPROVEMENT = 0.01`,
-`MIN_RESIDUAL_IMPROVEMENT = 0.05`, `GATE_B_AGREEMENT = 0.99`) were fixed before
-any data existed.
+`MIN_RESIDUAL_IMPROVEMENT = 0.05`) were fixed before any data existed.
 
 | Gate | Status | What it means |
 |---|---|---|
@@ -48,7 +47,7 @@ any data existed.
 | S1 | `NATIVE_USABLE` | 3/3 guards; replicates Safety-Flag |
 | S2 | `NO_DIFFERENCE` | Margin and probability rank identically |
 | S3 | `ALTERNATIVE_BEATS_NATIVE` | On 1 of 3 guards only -- see §5 |
-| S4 | `NOT_EVALUABLE` | Perturbation not measurable -- see §7 |
+| S4 | `INDEPENDENT` | Narrowly: \|r\| = 0.49 against a 0.5 cutoff, one guard, xstest+harmbench only -- see §7 |
 | S5 | `NOT_EVALUABLE` | Single guard kind; encoder retired (Amendment 1) |
 
 Licensed claims, from `claims_to_evidence.csv`:
@@ -57,6 +56,9 @@ Licensed claims, from `claims_to_evidence.csv`:
 - An alternative signal beats native confidence
 - At matched compute, a cheaper guard with better selection beats the default
 - The best oversight policy depends on the review budget
+- Behavioural instability carries information confidence cannot express
+  (S4; read §7 before quoting it -- instability still loses to native
+  confidence on AURC)
 
 **The third of these must not be written as stated.** See §3.
 
@@ -195,17 +197,17 @@ not a row-order artifact.
 | decider | panel | flag rate | band | band end - flag rate |
 |---|---|---:|---|---:|
 | L1b | L1b+L8b | 0.130 | 0.01-0.31 | +0.180 |
-| L1b | L1b+Q8b | 0.195 | 0.01-0.47 | +0.275 |
+| L1b | L1b+Q8b | 0.195 | 0.01-0.46 | +0.265 |
 | L1b | L1b+L8b+Q8b | 0.238 | 0.01-0.50 | +0.262 |
 | L8b | L1b+L8b | 0.130 | **never wins** | - |
-| L8b | L8b+Q8b | 0.151 | 0.02-0.29 | +0.139 |
-| L8b | L1b+L8b+Q8b | 0.238 | 0.19-0.31 | +0.072 |
+| L8b | L8b+Q8b | 0.151 | 0.02-0.28 | +0.129 |
+| L8b | L1b+L8b+Q8b | 0.238 | 0.20-0.31 | +0.072 |
 | Q8b | L8b+Q8b | 0.151 | 0.01-0.34 | +0.189 |
 | Q8b | L1b+Q8b | 0.195 | 0.17-0.21 | +0.015 |
-| Q8b | L1b+L8b+Q8b | 0.238 | 0.12-0.38 | +0.142 |
+| Q8b | L1b+L8b+Q8b | 0.238 | 0.12-0.37 | +0.132 |
 
 **The prediction fails.** Spearman(flag rate, band end) = 0.435 over 8 panels,
-and the band overshoots the flag rate in 7 of 8, by 0.159 on average.
+and the band overshoots the flag rate in all 8, by 0.155 on average.
 
 The flag rate is where agreement stops *gaining*, not where it stops *leading*.
 Advantage banked inside the flagged block persists past exhaustion, and native
@@ -286,6 +288,13 @@ Where it could be measured (xstest, 450 prompts), instability lost outright --
 AURC 0.0295 against native's 0.0157, catching 10 errors at 5% review where
 native caught 12, at 6x the compute.
 
+Gate S4 itself passed on that slice, narrowly: the correlation between
+instability and the margin is |r| = 0.49 against the 0.5 cutoff (one guard,
+xstest+harmbench, 650 prompts). So instability is not just a copy of the
+margin there, but it still ranks errors worse than native confidence. The
+earlier primary tables left the perturbation data out and reported S4 as
+`NOT_EVALUABLE`; they now include it.
+
 **Reportable as:** a bounded negative with an identified mechanism, and a
 condition for future work -- behavioural perturbation signals need
 length-proportional edits, which means a paraphrase model, which reintroduces
@@ -342,16 +351,15 @@ Bootstrapped over prompts, 2,000 resamples:
 
 | quantity | point | 95% CI |
 |---|---:|---|
-| 8B alone, error | 0.1049 | [0.0987, 0.1110] |
-| cascade (60% escalated), error | 0.1052 | [0.0989, 0.1112] |
-| cascade (oracle escalation), error | 0.0773 | [0.0720, 0.0827] |
+| 8B alone, error | 0.1049 | [0.0985, 0.1113] |
+| cascade (60% escalated), error | 0.1052 | [0.0988, 0.1118] |
+| cascade (oracle escalation), error | 0.0773 | [0.0717, 0.0830] |
 | **realised** gain (8B - cascade) | -0.0002 | **[-0.0017, +0.0012]** |
-| **available** gain (8B - oracle) | +0.0276 | **[+0.0243, +0.0309]** |
-| unrealised (cascade - oracle) | +0.0278 | [+0.0244, +0.0312] |
+| **available** gain (8B - oracle) | +0.0276 | **[+0.0243, +0.0310]** |
 
 The realised gain's interval **straddles zero**: the cascade buys nothing. The
 available gain's interval **excludes zero** by a wide margin. In relative terms
-the oracle cuts error by **26.3% [23.6%, 29.2%]** against the 8B alone, at
+the oracle cuts error by **26.3% [23.5%, 29.2%]** against the 8B alone, at
 **0.50x** its compute.
 
 This is the cleanest number in the study: the headroom is real and precisely
@@ -491,9 +499,18 @@ costs**: 0.793460 for every three-guard policy. `verify_selective.py` stays at
 
 **A1 and A2 verdicts are unchanged** (`CHEAPER_GUARD_WINS`, `BUDGET_DEPENDENT`,
 2 distinct winners) -- A2 ranks on residual, which pricing does not touch. The
-compute column of the A2 table and the frontier figure do change. Both
-versions are kept: `tables_repriced/` is primary, `tables_no_stability/` is the
-pre-fix comparison.
+compute column of the A2 table and the frontier figure do change.
+
+### 10.1b Policies were compared on different prompt sets, and are now fixed
+
+Found 2026-10-31. The stability signal exists only for Llama-Guard-3-8B on
+xstest+harmbench (650 prompts). `allocation.policy_row` scored each policy on
+the rows where its signal existed, so the stability policy's residual rate
+came from 650 short, easy prompts while every other policy's came from all
+8,986. Run with the perturbation data, it "won" A2 at 0-10% review for that
+reason alone. A policy must now cover every prompt to enter the allocation
+table. With the fix, the allocation table is identical to the one the paper
+was written from, and `verify_selective.py` stays at 13/13.
 
 ### 10.2 Remaining limitations
 2. **A1's "default" is an artifact of measured latency**, not of what teams
@@ -504,8 +521,11 @@ pre-fix comparison.
 4. **Section 6 is exploratory.** The correlated-failure floor was derived
    after seeing the results. The flag-rate mechanism in §6.2 was specified,
    tested on 8 panels, and rejected; it is reported, not quietly dropped.
-5. **S4 and S5 are untested, not negative.** S5 has no aligned encoder
-   (Amendment 1); S4 has no measurable variant family on realistic prompts.
+5. **S5 is untested, not negative**: no aligned encoder (Amendment 1).
+   **S4 passed narrowly and narrowly scoped**: |r| = 0.49 against a 0.5
+   cutoff, one guard, the two short datasets only. Instability still lost to
+   native confidence on AURC there, and no variant family was measurable on
+   realistic prompts.
 6. **The cascade analysis (§8) is post-hoc** and shares the single-environment
    cost model. The oracle is an upper bound on *this* guard pair only.
 7. **Single hardware configuration.** Compute prices are comparable only within
@@ -522,7 +542,7 @@ guard size, cross-model checking and human review on one frontier.*
 
 1. A two-dimensional pricing of oversight policies (compute x reviewer hours,
    no exchange rate) over 26,958 single-environment predictions -- absent from
-   the prior work in `related_work.md`.
+   the prior work (Safety-Flag).
 2. The correlated-failure floor (§6.3) -- see below; this is now the
    strongest mechanistic finding, the flag-rate rule having been falsified.
 3. A tested-and-rejected mechanism (§6.2): the natural "match flag rate to
@@ -533,6 +553,6 @@ guard size, cross-model checking and human review on one frontier.*
 5. Two mechanistic negatives (§7) in the 1-20% review regime that Safety-Flag's
    balanced protocol cannot address.
 
-**The rule from `CLAUDE.md` still governs:** never write a claim
-`claims_to_evidence.csv` has not marked `LICENSED` -- and, as A1 demonstrates,
-check that the evidence behind a licensed claim says what its label says.
+**The rule still governs:** never write a claim `claims_to_evidence.csv` has
+not marked `LICENSED` -- and, as A1 demonstrates, check that the evidence
+behind a licensed claim says what its label says.

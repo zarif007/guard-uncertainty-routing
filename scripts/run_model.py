@@ -17,7 +17,6 @@ from evaluation.hardware import (
 )
 from evaluation.profiling import InferenceProfiler, ModelProfiler, latency_summary
 from models.llm_loader import LLMGuard, resolve_model_path
-from models.registry import HF_SEQCLS
 from models.registry import get_config
 from scripts.data_loader import describe, get_dataset
 
@@ -53,7 +52,7 @@ def preflight(backend: str, allow_cpu_wheel: bool):
             "Rebuild with:\n"
             '  CMAKE_ARGS="-DGGML_CUDA=on" pip install --force-reinstall --no-binary '
             "llama-cpp-python llama-cpp-python\n"
-            "or run scripts/setup_runpod.sh. Pass --allow-cpu-wheel to override.\n"
+            "or run scripts/install_engine.sh. Pass --allow-cpu-wheel to override.\n"
         )
         sys.exit(2)
     if supports is None:
@@ -159,34 +158,22 @@ def run_model(
 
     print(f"[{tag}] Loading model")
     try:
-        # Encoder guards go through transformers, not llama.cpp.  They have
-        # no GGUF file, no chat template and no cacheable prefix, but
-        # EncoderGuard returns the same dict shape as LLMGuard so nothing
-        # downstream needs to know which one it got.
-        if config["backend"] == HF_SEQCLS:
-            from models.hf_loader import EncoderGuard
+        model_path = resolve_model_path(config)
 
-            mem_profiler = ModelProfiler(model_path=None, backend=backend)
-            mem_profiler.before_load()
-            model = EncoderGuard(config["key"])
-            mem_profiler.after_load()
-        else:
-            model_path = resolve_model_path(config)
-
-            mem_profiler = ModelProfiler(model_path=model_path, backend=backend)
-            mem_profiler.before_load()
-            model = LLMGuard(
-                quant_level=config["key"] if not local_path else model_name,
-                n_threads=n_threads,
-                n_gpu_layers=n_gpu_layers,
-                n_batch=n_batch,
-                flash_attn=flash_attn,
-                controversial_policy=controversial_policy,
-                n_ctx=n_ctx,
-                use_prefix_cache=not no_prefix_cache,
-                config_override=config if local_path else None,
-            )
-            mem_profiler.after_load()
+        mem_profiler = ModelProfiler(model_path=model_path, backend=backend)
+        mem_profiler.before_load()
+        model = LLMGuard(
+            quant_level=config["key"] if not local_path else model_name,
+            n_threads=n_threads,
+            n_gpu_layers=n_gpu_layers,
+            n_batch=n_batch,
+            flash_attn=flash_attn,
+            controversial_policy=controversial_policy,
+            n_ctx=n_ctx,
+            use_prefix_cache=not no_prefix_cache,
+            config_override=config if local_path else None,
+        )
+        mem_profiler.after_load()
     except Exception as exc:
         print(f"Failed to load {tag}: {exc}")
         sys.exit(1)
@@ -194,8 +181,7 @@ def run_model(
     mem = mem_profiler.stats()
     print(f"\n[{tag}] Memory profile:\n{mem_profiler.summary()}")
 
-    if (config["backend"] != HF_SEQCLS
-            and mem["offload_ok"] is False and not allow_partial_offload):
+    if mem["offload_ok"] is False and not allow_partial_offload:
         print(
             f"\nERROR: partial GPU offload detected for {tag}. Latency and memory from a "
             f"CPU/GPU hybrid are not comparable to a fully offloaded run.\n"
@@ -257,6 +243,7 @@ def run_model(
         results.append({
             "prompt_id": f"{dataset_name.lower()}_{idx}",
             "prompt": prompt,
+            "prompt_chars": len(prompt),
             "ground_truth": row["ground_truth"],
             "dataset": row["dataset"],
             "prediction": scored["prediction"],

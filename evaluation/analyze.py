@@ -49,13 +49,12 @@ from evaluation.signals import (
     MARGIN,
     MODEL_AGREE,
     NATIVE,
-    PRECISION_AGREE,
     STABILITY,
     attach_signals,
     available_signals,
 )
 from evaluation.threshold_analysis import auroc, to_labels
-from models.registry import PRECISION_LADDER, sort_keys
+from models.registry import sort_keys
 
 REVIEW_BUDGETS = [0.01, 0.05, 0.10, 0.20, 0.50]
 
@@ -276,12 +275,10 @@ def main():
     df = pd.concat(enriched, ignore_index=True)
 
     perturbed = load_perturbed(args.perturbed)
-    ladder_present = [m for m in PRECISION_LADDER if m in set(df["model"])]
     df = attach_signals(
         df,
         perturbed=perturbed if not perturbed.empty else None,
         model_members=models if len(models) > 1 else None,
-        precision_members=ladder_present if len(ladder_present) > 1 else None,
     )
 
     signals = available_signals(df)
@@ -289,8 +286,6 @@ def main():
     if STABILITY not in signals:
         print("  (no perturbation runs found — signal 3 skipped; "
               "run scripts/perturb.py to enable it)")
-    if PRECISION_AGREE not in signals:
-        print("  (fewer than two precisions scored — signal 5 skipped)")
 
     save(accuracy_summary(df, models), args.tables_dir, "accuracy_summary")
 
@@ -301,7 +296,7 @@ def main():
     save(budgets, args.tables_dir, "errors_caught_by_budget")
 
     # --- the allocation problem: what should a deployment actually do? ---
-    members = {MODEL_AGREE: models, PRECISION_AGREE: ladder_present}
+    members = {MODEL_AGREE: models}
     allocation = allocation_table(
         df, models, signals, budgets=DEFAULT_BUDGETS,
         perturbed=perturbed if not perturbed.empty else None,

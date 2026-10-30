@@ -1,0 +1,257 @@
+{
+  "flagged_block": {
+    "n_flagged": 2141,
+    "flag_rate": 0.23825951480080124,
+    "share_of_errors_in_block": {
+      "Llama-Guard-3-8B": 0.7285259809119831,
+      "Qwen3Guard-8B": 0.7538461538461538,
+      "Llama-Guard-3-1B": 0.8413878562577447
+    }
+  },
+  "cascade": {
+    "escalate_fraction": 0.6,
+    "policies": {
+      "alone": {
+        "error": 0.10494101936345426,
+        "error_ci": [
+          0.09848653460939238,
+          0.11128421989761851
+        ],
+        "compute": 0.3190960139036178
+      },
+      "cascade": {
+        "error": 0.1051635878032495,
+        "error_ci": [
+          0.09882038726908525,
+          0.11184064099710661
+        ],
+        "compute": 0.2935176143422722
+      },
+      "oracle": {
+        "error": 0.07734253282884487,
+        "error_ci": [
+          0.07166703761406633,
+          0.08301802804362342
+        ],
+        "compute": 0.15937371248134333
+      }
+    },
+    "realised_gain": -0.00022256843979523433,
+    "realised_gain_ci": [
+      -0.0016692632984642852,
+      0.0012241264188738027
+    ],
+    "available_gain": 0.02759848653460939,
+    "available_gain_ci": [
+      0.024259959937680847,
+      0.031048297351435564
+    ],
+    "available_relative": 0.26299045599151644,
+    "available_relative_ci": [
+      0.23456469955432607,
+      0.29153365694808986
+    ]
+  },
+  "unanimous_failure": {
+    "n": 256,
+    "rate": 0.02848876029379034,
+    "benign_flagged": 167,
+    "harmful_admitted": 89,
+    "by_dataset": [
+      {
+        "dataset": "xstest",
+        "n": 450,
+        "unanimously_wrong": 11,
+        "rate": 0.024444444444444446,
+        "median_chars_wrong": 45.0,
+        "median_chars_rest": 42.0
+      },
+      {
+        "dataset": "harmbench",
+        "n": 200,
+        "unanimously_wrong": 0,
+        "rate": 0.0,
+        "median_chars_wrong": null,
+        "median_chars_rest": 82.0
+      },
+      {
+        "dataset": "toxicchat",
+        "n": 4972,
+        "unanimously_wrong": 76,
+        "rate": 0.015285599356395816,
+        "median_chars_wrong": 83.0,
+        "median_chars_rest": 59.0
+      },
+      {
+        "dataset": "wildguardtest",
+        "n": 1699,
+        "unanimously_wrong": 87,
+        "rate": 0.051206592113007654,
+        "median_chars_wrong": 548.0,
+        "median_chars_rest": 235.5
+      },
+      {
+        "dataset": "openai_moderation",
+        "n": 1665,
+        "unanimously_wrong": 82,
+        "rate": 0.04924924924924925,
+        "median_chars_wrong": 967.5,
+        "median_chars_rest": 363.0
+      }
+    ],
+    "confidence": {
+      "Llama-Guard-3-8B": {
+        "all": 0.4970888732711653,
+        "unanimously_wrong": 0.4650887112247723,
+        "unanimously_right": 0.4988973095531327
+      },
+      "Qwen3Guard-8B": {
+        "all": 0.495849796873891,
+        "unanimously_wrong": 0.48021979265303427,
+        "unanimously_right": 0.4970283063706466
+      },
+      "Llama-Guard-3-1B": {
+        "all": 0.4820653775421726,
+        "unanimously_wrong": 0.4585293838967573,
+        "unanimously_right": 0.4927714395398992
+      }
+    },
+    "length_quintiles": [
+      {
+        "quintile": 1,
+        "median_chars": 30.0,
+        "rate": 0.006489994591671174
+      },
+      {
+        "quintile": 2,
+        "median_chars": 53.0,
+        "rate": 0.021689497716894976
+      },
+      {
+        "quintile": 3,
+        "median_chars": 93.0,
+        "rate": 0.030709101060859854
+      },
+      {
+        "quintile": 4,
+        "median_chars": 259.0,
+        "rate": 0.022815804117974403
+      },
+      {
+        "quintile": 5,
+        "median_chars": 869.0,
+        "rate": 0.06121313299944352
+      }
+    ]
+  },
+  "perturbation_usability": {
+    "by_dataset": [
+      {
+        "dataset": "xstest",
+        "mean_chars": 44.22666666666667,
+        "usable_variants": 5.0
+      },
+      {
+        "dataset": "harmbench",
+        "mean_chars": 88.605,
+        "usable_variants": 4.405
+      },
+      {
+        "dataset": "toxicchat",
+        "mean_chars": 167.48712791633145,
+        "usable_variants": 3.46
+      },
+      {
+        "dataset": "wildguardtest",
+        "mean_chars": 479.9329017068864,
+        "usable_variants": 2.42
+      },
+      {
+        "dataset": "openai_moderation",
+        "mean_chars": 644.9117117117117,
+        "usable_variants": 2.05
+      }
+    ],
+    "spearman_length_vs_variants": -0.9999999999999999
+  },
+  "band_test": {
+    "rows": [
+      {
+        "decider": "L8b",
+        "panel": "L1b+L8b",
+        "flag_rate": 0.1298686846205208,
+        "band_start": null,
+        "band_end": null,
+        "overshoot": null
+      },
+      {
+        "decider": "L8b",
+        "panel": "L8b+Q8b",
+        "flag_rate": 0.15123525484086356,
+        "band_start": 0.02,
+        "band_end": 0.28,
+        "overshoot": 0.12876474515913647
+      },
+      {
+        "decider": "L8b",
+        "panel": "L1b+L8b+Q8b",
+        "flag_rate": 0.23825951480080124,
+        "band_start": 0.2,
+        "band_end": 0.31,
+        "overshoot": 0.07174048519919876
+      },
+      {
+        "decider": "Q8b",
+        "panel": "L1b+Q8b",
+        "flag_rate": 0.19541509014021813,
+        "band_start": 0.17,
+        "band_end": 0.21,
+        "overshoot": 0.014584909859781864
+      },
+      {
+        "decider": "Q8b",
+        "panel": "L8b+Q8b",
+        "flag_rate": 0.15123525484086356,
+        "band_start": 0.01,
+        "band_end": 0.34,
+        "overshoot": 0.18876474515913647
+      },
+      {
+        "decider": "Q8b",
+        "panel": "L1b+L8b+Q8b",
+        "flag_rate": 0.23825951480080124,
+        "band_start": 0.12,
+        "band_end": 0.37,
+        "overshoot": 0.13174048519919876
+      },
+      {
+        "decider": "L1b",
+        "panel": "L1b+L8b",
+        "flag_rate": 0.1298686846205208,
+        "band_start": 0.01,
+        "band_end": 0.31,
+        "overshoot": 0.18013131537947918
+      },
+      {
+        "decider": "L1b",
+        "panel": "L1b+Q8b",
+        "flag_rate": 0.19541509014021813,
+        "band_start": 0.01,
+        "band_end": 0.46,
+        "overshoot": 0.2645849098597819
+      },
+      {
+        "decider": "L1b",
+        "panel": "L1b+L8b+Q8b",
+        "flag_rate": 0.23825951480080124,
+        "band_start": 0.01,
+        "band_end": 0.5,
+        "overshoot": 0.2617404851991988
+      }
+    ],
+    "n_panels_with_band": 8,
+    "spearman_flag_rate_vs_band_end": 0.4349924276467102,
+    "n_overshoot": 8,
+    "mean_overshoot": 0.15525651012686403
+  }
+}

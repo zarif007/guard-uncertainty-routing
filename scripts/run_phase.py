@@ -32,12 +32,6 @@ PHASES = {
         "gate": "S3, S5: does anything beat native confidence, "
                 "and does guard kind decide it?",
     },
-    "4": {
-        "name": "Precision ladder",
-        "models": ["precision-ladder"],
-        "datasets": ["xstest", "harmbench"],
-        "gate": "signal 5: cross-precision agreement as an uncertainty signal",
-    },
 }
 
 
@@ -56,14 +50,10 @@ def disk_report(keys):
 
 def evict(key):
     config = get_config(key)
-    # Walk the configured weights directory, not a hardcoded relative path.
-    # setup_runpod.sh points MODEL_WEIGHTS_DIR at the persistent volume, so
-    # the old literal found nothing and eviction silently did nothing --
-    # exactly when the disk was filling up.
     root = DEFAULT_WEIGHTS_DIR
     removed = 0
     if not config["filename"]:
-        return  # transformers-backed guard; nothing to evict
+        return
     for dirpath, _, filenames in os.walk(root):
         for fn in filenames:
             if fn == config["filename"]:

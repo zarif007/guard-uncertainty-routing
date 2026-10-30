@@ -8,19 +8,11 @@ from scripts.datasets_registry import DATASETS
 NORMALIZED_DIR = "datasets/normalized"
 REQUIRED_COLUMNS = {"prompt", "ground_truth"}
 
-LEGACY_PATHS = {
-    "harmbench": "datasets/harmbench/harmbench.csv",
-    "xstest": "datasets/xstest/xstest.csv",
-}
-
 
 def _candidate_paths(name: str) -> List[str]:
-    paths = [os.path.join(NORMALIZED_DIR, f"{name}.csv")]
-    if name in LEGACY_PATHS:
-        paths.append(LEGACY_PATHS[name])
     if name in DATASETS and DATASETS[name].local_csv:
-        paths.append(DATASETS[name].local_csv)
-    return paths
+        return [DATASETS[name].local_csv]
+    return [os.path.join(NORMALIZED_DIR, f"{name}.csv")]
 
 
 def _validate(df: pd.DataFrame, name: str) -> pd.DataFrame:
@@ -54,18 +46,6 @@ def get_dataset(name: str, subset_size: Optional[int] = None) -> pd.DataFrame:
         f"Dataset '{name}' not found. Looked in: {_candidate_paths(key)}\n"
         f"Run: python scripts/download_datasets.py --datasets {key}"
     )
-
-
-def get_datasets(names: List[str], subset_size: Optional[int] = None) -> pd.DataFrame:
-    return pd.concat([get_dataset(n, subset_size) for n in names], ignore_index=True)
-
-
-def get_harmbench(subset_size=None) -> pd.DataFrame:
-    return get_dataset("harmbench", subset_size)
-
-
-def get_xstest(subset_size=None) -> pd.DataFrame:
-    return get_dataset("xstest", subset_size)
 
 
 def stratified_subset(df: pd.DataFrame, n: int, seed: int = 42) -> pd.DataFrame:

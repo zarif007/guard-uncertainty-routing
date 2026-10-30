@@ -43,7 +43,6 @@ from evaluation.signals import (
     MARGIN,
     MODEL_AGREE,
     NATIVE,
-    PRECISION_AGREE,
     STABILITY,
 )
 
@@ -110,7 +109,7 @@ def signal_multiplier(signal: str, df: pd.DataFrame,
             if sub.empty:
                 return float("nan")
         return float(sub.groupby("prompt_id").size().mean())
-    if signal in (MODEL_AGREE, PRECISION_AGREE):
+    if signal == MODEL_AGREE:
         return float(len(members)) if members else float("nan")
     return float("nan")
 
@@ -147,8 +146,7 @@ def policy_row(df: pd.DataFrame, model: str, signal: str, budget: float,
     if signal not in sub.columns:
         return None
     mask = sub[signal].notna().to_numpy()
-    sub = sub[mask]
-    if len(sub) < 30:
+    if not mask.all() or len(sub) < 30:
         return None
 
     errors = error_vector(sub["ground_truth"], sub["prediction"])
@@ -204,7 +202,7 @@ def allocation_table(
             members = ensemble_members.get(signal)
             # A panel's price is the panel's, not the deciding guard's x k.
             compute = (ensemble_compute_cost(df, members, cost_basis)
-                       if signal in (MODEL_AGREE, PRECISION_AGREE) and members
+                       if signal == MODEL_AGREE and members
                        else None)
             for budget in budgets:
                 row = policy_row(df, model, signal, budget, unit, mult,

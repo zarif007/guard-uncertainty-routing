@@ -11,7 +11,6 @@ from models.registry import MODEL_CONFIGS, get_config
 from models.templates import GuardTemplate, get_template, template_fingerprint
 
 
-
 class ModelFileNotFound(RuntimeError):
     pass
 
@@ -306,19 +305,6 @@ class LLMGuard:
             "raw_output": self.llm.detokenize([top_id]).decode("utf-8", errors="replace"),
         }
 
-    def predict(self, prompt: str) -> str:
-        return self.predict_score(prompt)["prediction"]
-
-    def predict_generate(self, prompt: str, max_tokens: int = 16) -> str:
-        self.llm.reset()
-        output = self.llm(
-            self.template.render(prompt),
-            max_tokens=max_tokens,
-            temperature=0.0,
-            top_p=1.0,
-            stop=["<|eot_id|>", "<|im_end|>"],
-        )
-        return output["choices"][0]["text"].strip()
 
     def token_report(self) -> str:
         return self.labels.describe(self.llm)

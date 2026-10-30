@@ -37,7 +37,6 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models.llm_loader import LLMGuard
 from models.registry import get_config
 from scripts.data_loader import get_dataset
 
@@ -247,6 +246,8 @@ MIN_EFFECTIVE_VARIANTS = 4
 
 def main():
     import numpy as np
+
+    from models.llm_loader import LLMGuard
 
     parser = argparse.ArgumentParser(description="Score reworded variants of each prompt")
     parser.add_argument("--model", required=True)

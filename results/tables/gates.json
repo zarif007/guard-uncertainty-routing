@@ -68,39 +68,39 @@
     "winners_by_budget": {
       "0.0": {
         "model": "llama-guard-3-8b:fp16",
-        "signal": "conf_stability",
-        "residual_error_rate": 0.07384615384615385,
-        "compute_per_decision": 1.9145760834217067
+        "signal": "conf_native",
+        "residual_error_rate": 0.10494101936345426,
+        "compute_per_decision": 0.3190960139036178
       },
       "0.01": {
         "model": "llama-guard-3-8b:fp16",
-        "signal": "conf_stability",
-        "residual_error_rate": 0.07076923076923076,
-        "compute_per_decision": 1.9145760834217067
+        "signal": "conf_native",
+        "residual_error_rate": 0.09993322946806144,
+        "compute_per_decision": 0.3190960139036178
       },
       "0.02": {
         "model": "llama-guard-3-8b:fp16",
-        "signal": "conf_stability",
-        "residual_error_rate": 0.06615384615384616,
-        "compute_per_decision": 1.9145760834217067
+        "signal": "conf_native",
+        "residual_error_rate": 0.09626085021144001,
+        "compute_per_decision": 0.3190960139036178
       },
       "0.05": {
         "model": "llama-guard-3-8b:fp16",
-        "signal": "conf_stability",
-        "residual_error_rate": 0.052307692307692305,
-        "compute_per_decision": 1.9145760834217067
+        "signal": "conf_native",
+        "residual_error_rate": 0.08324059648341865,
+        "compute_per_decision": 0.3190960139036178
       },
       "0.1": {
-        "model": "llama-guard-3-8b:fp16",
-        "signal": "conf_stability",
-        "residual_error_rate": 0.04923076923076923,
-        "compute_per_decision": 1.9145760834217067
+        "model": "qwen3guard-gen-8b:fp16",
+        "signal": "conf_model_agree",
+        "residual_error_rate": 0.06343200534164256,
+        "compute_per_decision": 0.7934602396562694
       },
       "0.2": {
         "model": "qwen3guard-gen-8b:fp16",
         "signal": "conf_model_agree",
         "residual_error_rate": 0.03761406632539506,
-        "compute_per_decision": 1.1169126592576504
+        "compute_per_decision": 0.7934602396562694
       },
       "0.5": {
         "model": "llama-guard-3-8b:fp16",
@@ -109,9 +109,9 @@
         "compute_per_decision": 0.3190960139036178
       }
     },
-    "n_distinct_winners": 3,
+    "n_distinct_winners": 2,
     "crossover_observed": true,
-    "reason": "3 different policies win at different budgets"
+    "reason": "2 different policies win at different budgets"
   },
   "gate_s1": {
     "gate": "S1",
@@ -264,12 +264,12 @@
     "status": "INDEPENDENT",
     "per_model": {
       "llama-guard-3-8b:fp16": {
-        "correlation_with_margin": 0.4899464958427959,
+        "correlation_with_margin": 0.4899464958427958,
         "n_saturated": 0,
         "saturated_deferral_efficiency": null
       }
     },
-    "mean_abs_correlation": 0.4899464958427959,
+    "mean_abs_correlation": 0.4899464958427958,
     "reason": "stability carries information the margin does not"
   },
   "gate_s5": {

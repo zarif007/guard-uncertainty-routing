@@ -1,13 +1,11 @@
 """
 The gates.  Fixed before any data is collected, and each one can fail.
 
-The discipline is inherited from the quantization study this repo used to be
-(docs/archive_preregistration_quantization.md): criteria are committed in
-advance, and scripts/verify_selective.py runs every gate against synthetic
-data whose truth is known by construction.  A test that cannot fail on data
+Criteria are committed in advance, and scripts/verify_selective.py runs every
+gate against synthetic data whose truth is known by construction.  A test that cannot fail on data
 built to fail it is decoration.
 
-What changed with the pivot is the BASELINE.  Safety-Flag (arXiv 2609.19072)
+The BASELINE is native confidence.  Safety-Flag (arXiv 2609.19072)
 established that a guard's native confidence already beats random deferral on
 every model they tested.  So "beats random" is no longer a finding -- it is a
 sanity check that our pipeline reproduces known results.  The crux is whether
@@ -19,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from evaluation.selective import compare_signals, error_vector
-from evaluation.signals import MARGIN, NATIVE, PRECISION_AGREE, STABILITY
+from evaluation.signals import MARGIN, MODEL_AGREE, NATIVE, STABILITY
 
 # --- thresholds, fixed in advance ----------------------------------------
 # A signal must beat the baseline by at least this much AURC to count as a
@@ -33,28 +31,6 @@ CONFIDENCE_LEVEL = 0.95
 # Below this fraction of distinct confidence values, a signal is reporting
 # input order rather than ranking, and its AURC is not interpretable.
 MAX_TIE_FRACTION = 0.90
-
-# Gate B (scorer sanity) survives from the previous study unchanged.
-GATE_B_AGREEMENT = 0.99
-CACHE_SPEEDUP_TARGET_BY_BACKEND = {"cpu": 5.0, "metal": 3.0, "cuda": 1.2}
-
-
-def cache_speedup_target(backend: Optional[str] = None) -> float:
-    return CACHE_SPEEDUP_TARGET_BY_BACKEND.get((backend or "cpu").lower(), 5.0)
-
-
-def gate_b(agreement: float, speedup: Optional[float] = None,
-           backend: Optional[str] = None) -> Dict:
-    """Scorer sanity: p_unsafe >= 0.5 reproduces the argmax label."""
-    passed = agreement >= GATE_B_AGREEMENT
-    target = cache_speedup_target(backend)
-    return {
-        "gate": "B", "status": "PASS" if passed else "FAIL",
-        "agreement": agreement, "threshold": GATE_B_AGREEMENT,
-        "cache_speedup": speedup, "cache_speedup_target": target,
-        "reason": ("scores reproduce labels" if passed
-                   else f"agreement {agreement:.4f} below {GATE_B_AGREEMENT}"),
-    }
 
 
 # --- helpers --------------------------------------------------------------
@@ -165,12 +141,12 @@ def gate_s2(df: pd.DataFrame) -> Dict:
     }
 
 
-def gate_s3(df: pd.DataFrame, signals: Sequence[str] = (STABILITY, PRECISION_AGREE)) -> Dict:
+def gate_s3(df: pd.DataFrame, signals: Sequence[str] = (STABILITY, MODEL_AGREE)) -> Dict:
     """
     S3 -- THE CRUX.  Does any alternative signal beat native confidence?
 
     Baseline is native confidence, not random.  Holm correction is applied
-    across the signals tested, because testing five signals and reporting the
+    across the signals tested, because testing several signals and reporting the
     best one is how a null result becomes a paper by accident.
     """
     from evaluation.statistical_tests import holm_correction

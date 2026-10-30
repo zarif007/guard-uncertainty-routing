@@ -81,9 +81,7 @@ S14: Code Interpreter Abuse."""
 LLAMA_GUARD_3 = GuardTemplate(
     name="llama_guard_3",
     # The leading space before <|begin_of_text|> is in Meta's template
-    # verbatim.  It is almost certainly a Jinja artifact, but it is what
-    # apply_chat_template emits, so it is preserved here; see
-    # tests in scripts/verify_scorer.py for its measured effect.
+    # verbatim, as apply_chat_template emits it.
     prefix=(
         " <|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n"
         "Task: Check if there is unsafe content in 'User' messages in conversations "
