@@ -1,7 +1,8 @@
 # Buy the Better Guard
 
 Code and data for *Buy the Better Guard: What a Fixed Oversight Budget Buys in
-Safety Moderation*.
+Safety Moderation*. Read the paper:
+[`paper/buy_the_better_guard.pdf`](paper/buy_the_better_guard.pdf).
 
 > **Content warning.** The datasets and prediction files contain harmful,
 > offensive and unsafe prompts. They are here for safety research only.
@@ -18,9 +19,14 @@ on **residual risk**: the mistakes still reaching users after review.
 
 ## The answer
 
-At 1%, 2%, 5% and 50% review, the strongest single guard ranked by its own
-confidence ships the fewest mistakes. A three-guard panel wins only between
-10% and 20% review, at 2.5x the compute. The smallest guard never wins.
+Pooled over five datasets, at 1%, 2%, 5% and 50% review, the strongest single
+guard ranked by its own confidence ships the fewest mistakes. A three-guard
+panel wins only between 10% and 20% review, at 2.5x the compute. The smallest
+guard never wins.
+
+Per dataset the picture is more mixed. Which guard is best depends on the
+traffic, and on ToxicChat, the only set with a realistic harmful rate, the
+panel wins from 2% to 20% review.
 
 The alternatives lose because no available signal can tell which decisions
 are wrong. Perfect routing between two of the guards would cut error by 26.3%
@@ -31,7 +37,7 @@ at half the compute, and the best real signal captures none of it.
 ```
 evaluation/
   analyze.py       gates, tables and claims (results/tables/)
-  paper.py         exploratory analyses and the six paper figures
+  paper.py         exploratory analyses and the seven paper figures
   allocation.py    policies, prices, residual risk
   selective.py     risk-coverage, AURC, errors caught at a budget
   signals.py       the four routing signals
@@ -48,9 +54,12 @@ datasets/          HarmBench and XSTest (the other three are downloaded)
 results/
   predictions/     26,958 guard predictions, plus perturbation runs
   tables/          generated tables, gates.json, claims_to_evidence.csv
-  paper_figures/   the six figures in the paper
+paper/
+  buy_the_better_guard.pdf   the paper
+  main.tex                   LaTeX source (compiles with pdfLaTeX + BibTeX)
+  references.bib             bibliography
+  figures/                   the seven figures, numbered as in the paper
 docs/
-  paper_draft.md        the paper (build the PDF: python scripts/build_paper_pdf.py)
   preregistration.md    hypotheses and thresholds, fixed before data
   study_protocol.md     the design in plain language
   findings.md           where every number comes from
@@ -71,7 +80,7 @@ python evaluation/paper.py
 `verify_selective.py` runs every gate on synthetic data whose answer is known,
 in both directions. It should report 13/13.
 
-`paper.py` needs the downloaded datasets for one panel of figure 5 (usable
+`paper.py` needs the downloaded datasets for one panel of figure 6 (usable
 rewordings per dataset). Without them it skips those datasets. To get them,
 accept the WildGuardMix terms on Hugging Face, log in, and run:
 

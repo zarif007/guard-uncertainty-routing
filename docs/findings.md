@@ -564,7 +564,7 @@ behind a licensed claim says what its label says.
 
 `evaluation/paper.py` writes `per_dataset` into `exploratory.json` and draws
 the oversight frontier at 1%, 5%, 10% and 20% review
-(`fig7_oversight_frontier.png`).
+(`paper/figures/fig2_oversight_frontier.png`).
 
 The pooled answer does not hold uniformly. Qwen3Guard-Gen-8B has the lowest
 error on xstest, harmbench and wildguardtest; Llama-Guard-3-8B wins the pooled

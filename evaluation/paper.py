@@ -450,7 +450,7 @@ def main():
     parser = argparse.ArgumentParser(description="Exploratory analyses and figures for the paper")
     parser.add_argument("--predictions-dir", default="results/predictions")
     parser.add_argument("--tables-dir", default="results/tables")
-    parser.add_argument("--figures-dir", default="results/paper_figures")
+    parser.add_argument("--figures-dir", default="paper/figures")
     args = parser.parse_args()
     os.makedirs(args.figures_dir, exist_ok=True)
 
@@ -479,13 +479,13 @@ def main():
         gates = json.load(f)
 
     fig_budget_crossover(allocation, os.path.join(args.figures_dir, "fig1_budget_crossover.png"))
-    fig_frontier(allocation, os.path.join(args.figures_dir, "fig7_oversight_frontier.png"))
-    fig_risk_coverage(df, os.path.join(args.figures_dir, "fig2_risk_coverage.png"))
-    fig_agreement_forest(gates, os.path.join(args.figures_dir, "fig3_agreement_forest.png"))
-    fig_identification_gap(out["cascade"], os.path.join(args.figures_dir, "fig4_identification_gap.png"))
+    fig_frontier(allocation, os.path.join(args.figures_dir, "fig2_oversight_frontier.png"))
+    fig_risk_coverage(df, os.path.join(args.figures_dir, "fig3_risk_coverage.png"))
+    fig_agreement_forest(gates, os.path.join(args.figures_dir, "fig4_agreement_forest.png"))
+    fig_identification_gap(out["cascade"], os.path.join(args.figures_dir, "fig5_identification_gap.png"))
     fig_length_axis(out["unanimous_failure"], out["perturbation_usability"],
-                    os.path.join(args.figures_dir, "fig5_length_axis.png"))
-    fig_auroc_vs_error(summary, os.path.join(args.figures_dir, "fig6_auroc_vs_error.png"))
+                    os.path.join(args.figures_dir, "fig6_length_axis.png"))
+    fig_auroc_vs_error(summary, os.path.join(args.figures_dir, "fig7_auroc_vs_error.png"))
     print(f"  wrote 7 figures to {args.figures_dir}")
 
 
