@@ -1,8 +1,7 @@
 """
 build_paper_pdf.py -- render docs/paper_draft.md to a PDF with figures.
 
-A stopgap until the paper moves to LaTeX, which arXiv and every venue template
-require.  Handles the markdown subset the draft actually uses: headings, bold,
+Handles the markdown subset the draft actually uses: headings, bold,
 italic, inline code, bullets, numbered lists, tables, block quotes, rules, and
 figure anchors of the form
 
@@ -46,23 +45,21 @@ def styles():
                     spaceAfter=10, alignment=TA_LEFT, textColor=ACCENT),
         "h2": mk("h2", fontName="Times-Bold", fontSize=12.5, leading=15,
                  spaceBefore=13, spaceAfter=5, alignment=TA_LEFT,
-                 textColor=ACCENT),
+                 textColor=ACCENT, keepWithNext=1),
         "h3": mk("h3", fontName="Times-Bold", fontSize=10.5, leading=13,
-                 spaceBefore=9, spaceAfter=3, alignment=TA_LEFT),
+                 spaceBefore=9, spaceAfter=3, alignment=TA_LEFT, keepWithNext=1),
         "body": mk("body"),
         "bullet": mk("bullet", leftIndent=11, bulletIndent=2, spaceAfter=2.5),
         "quote": mk("quote", leftIndent=11, rightIndent=8, fontName="Times-Italic",
                     textColor=ACCENT, spaceBefore=5, spaceAfter=6),
         "caption": mk("caption", fontSize=8, leading=10.5, spaceBefore=4,
-                      spaceAfter=1.5, textColor=MUTED),
+                      spaceAfter=11, textColor=MUTED),
         "cell": mk("cell", fontSize=8, leading=10.2, spaceAfter=0,
                    alignment=TA_LEFT),
         "cellh": mk("cellh", fontName="Times-Bold", fontSize=8, leading=10.2,
                     spaceAfter=0, alignment=TA_LEFT),
         "meta": mk("meta", fontName="Times-Italic", fontSize=8.5, leading=11,
                    textColor=MUTED, spaceAfter=9, alignment=TA_LEFT),
-        "src": mk("src", fontSize=7, leading=9, spaceBefore=0, spaceAfter=11,
-                  textColor=colors.HexColor("#8a8a8a"), alignment=TA_LEFT),
         "code": mk("code", fontName="Courier", fontSize=8.2, leading=11,
                    alignment=TA_LEFT, leftIndent=9, spaceBefore=4,
                    spaceAfter=7, textColor=colors.HexColor("#24292e")),
@@ -87,15 +84,11 @@ def figure(name, caption, st, width):
         return [Paragraph(f"[missing figure: {name}]", st["caption"])]
     from reportlab.lib.utils import ImageReader
     iw, ih = ImageReader(path).getSize()
-    w = min(width, width * 0.98)
+    w = width * (0.98 if iw / ih > 1.9 else 0.78)
     img = Image(path, width=w, height=w * ih / iw)
     n = figure.counter = getattr(figure, "counter", 0) + 1
     cap = Paragraph(f"<b>Figure {n}.</b> {inline(caption)}", st["caption"])
-    # The source path, so the figure can be found when porting to LaTeX.
-    src = Paragraph(
-        f'<font face="Courier" size="7">results/paper_figures/{name}</font>',
-        st["src"])
-    return [KeepTogether([Spacer(1, 4), img, cap, src])]
+    return [KeepTogether([Spacer(1, 4), img, cap])]
 
 
 def table(rows, st, width):
@@ -103,13 +96,8 @@ def table(rows, st, width):
     ncol = len(head)
     data = [[Paragraph(inline(c), st["cellh"]) for c in head]]
     data += [[Paragraph(inline(c), st["cell"]) for c in r] for r in body]
-    # First column usually carries the label and needs the room.
-    if ncol > 2:
-        first = width * 0.34
-        rest = (width - first) / (ncol - 1)
-        widths = [first] + [rest] * (ncol - 1)
-    else:
-        widths = [width / ncol] * ncol
+    longest = [max(len(r[j]) if j < len(r) else 0 for r in rows) + 4 for j in range(ncol)]
+    widths = [width * n / sum(longest) for n in longest]
     t = Table(data, colWidths=widths, hAlign="LEFT", repeatRows=1)
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -271,7 +259,7 @@ def main():
                             leftMargin=22 * mm, rightMargin=22 * mm,
                             topMargin=20 * mm, bottomMargin=20 * mm,
                             title="Buy the Better Guard",
-                            author="")
+                            author="Md. Zariful Huq")
     width = doc.width
     doc.build(parse(md, st, width), onFirstPage=footer, onLaterPages=footer)
     print(f"wrote {a.output}  ({os.path.getsize(a.output)/1024:.0f} KB, "

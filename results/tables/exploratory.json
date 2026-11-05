@@ -253,5 +253,291 @@
     "spearman_flag_rate_vs_band_end": 0.4349924276467102,
     "n_overshoot": 8,
     "mean_overshoot": 0.15525651012686403
+  },
+  "per_dataset": {
+    "guards": [
+      {
+        "dataset": "xstest",
+        "n": 450,
+        "harmful_rate": 0.4444444444444444,
+        "error_L8b": 0.09555555555555556,
+        "error_Q8b": 0.08222222222222222,
+        "error_L1b": 0.1511111111111111
+      },
+      {
+        "dataset": "harmbench",
+        "n": 200,
+        "harmful_rate": 1.0,
+        "error_L8b": 0.025,
+        "error_Q8b": 0.0,
+        "error_L1b": 0.05
+      },
+      {
+        "dataset": "toxicchat",
+        "n": 4972,
+        "harmful_rate": 0.07119871279163315,
+        "error_L8b": 0.07743362831858407,
+        "error_Q8b": 0.07803700724054706,
+        "error_L1b": 0.16170555108608206
+      },
+      {
+        "dataset": "wildguardtest",
+        "n": 1699,
+        "harmful_rate": 0.44379046497939967,
+        "error_L8b": 0.17245438493231313,
+        "error_Q8b": 0.088875809299588,
+        "error_L1b": 0.2012948793407887
+      },
+      {
+        "dataset": "openai_moderation",
+        "n": 1665,
+        "harmful_rate": 0.3087087087087087,
+        "error_L8b": 0.13033033033033034,
+        "error_Q8b": 0.2786786786786787,
+        "error_L1b": 0.23423423423423423
+      }
+    ],
+    "winners": [
+      {
+        "dataset": "xstest",
+        "review_budget": 0.01,
+        "best_policy": "Q8b+panel",
+        "best_residual": 0.07555555555555556,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.08
+      },
+      {
+        "dataset": "xstest",
+        "review_budget": 0.02,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.07111111111111111,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.07111111111111111
+      },
+      {
+        "dataset": "xstest",
+        "review_budget": 0.05,
+        "best_policy": "Q8b+panel",
+        "best_residual": 0.057777777777777775,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.06222222222222222
+      },
+      {
+        "dataset": "xstest",
+        "review_budget": 0.1,
+        "best_policy": "Q8b+panel",
+        "best_residual": 0.03777777777777778,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.042222222222222223
+      },
+      {
+        "dataset": "xstest",
+        "review_budget": 0.2,
+        "best_policy": "L8b+own",
+        "best_residual": 0.024444444444444446,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.024444444444444446
+      },
+      {
+        "dataset": "xstest",
+        "review_budget": 0.5,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.0,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.0
+      },
+      {
+        "dataset": "harmbench",
+        "review_budget": 0.01,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.0,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.0
+      },
+      {
+        "dataset": "harmbench",
+        "review_budget": 0.02,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.0,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.0
+      },
+      {
+        "dataset": "harmbench",
+        "review_budget": 0.05,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.0,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.0
+      },
+      {
+        "dataset": "harmbench",
+        "review_budget": 0.1,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.0,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.0
+      },
+      {
+        "dataset": "harmbench",
+        "review_budget": 0.2,
+        "best_policy": "L8b+own",
+        "best_residual": 0.0,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.0
+      },
+      {
+        "dataset": "harmbench",
+        "review_budget": 0.5,
+        "best_policy": "L1b+own",
+        "best_residual": 0.0,
+        "best_single_policy": "L1b+own",
+        "best_single_residual": 0.0
+      },
+      {
+        "dataset": "toxicchat",
+        "review_budget": 0.01,
+        "best_policy": "L8b+own",
+        "best_residual": 0.07200321802091714,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.07200321802091714
+      },
+      {
+        "dataset": "toxicchat",
+        "review_budget": 0.02,
+        "best_policy": "L8b+panel",
+        "best_residual": 0.06637168141592921,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.06798069187449718
+      },
+      {
+        "dataset": "toxicchat",
+        "review_budget": 0.05,
+        "best_policy": "L8b+panel",
+        "best_residual": 0.05329847144006436,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.05631536604987932
+      },
+      {
+        "dataset": "toxicchat",
+        "review_budget": 0.1,
+        "best_policy": "Q8b+panel",
+        "best_residual": 0.039621882542236524,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.042638777152051485
+      },
+      {
+        "dataset": "toxicchat",
+        "review_budget": 0.2,
+        "best_policy": "L8b+panel",
+        "best_residual": 0.017095736122284794,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.022325020112630732
+      },
+      {
+        "dataset": "toxicchat",
+        "review_budget": 0.5,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.004022526146419952,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.004022526146419952
+      },
+      {
+        "dataset": "wildguardtest",
+        "review_budget": 0.01,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.08357857563272514,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.08357857563272514
+      },
+      {
+        "dataset": "wildguardtest",
+        "review_budget": 0.02,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.08063566804002355,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.08063566804002355
+      },
+      {
+        "dataset": "wildguardtest",
+        "review_budget": 0.05,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.06886403766921718,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.06886403766921718
+      },
+      {
+        "dataset": "wildguardtest",
+        "review_budget": 0.1,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.05768098881695115,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.05768098881695115
+      },
+      {
+        "dataset": "wildguardtest",
+        "review_budget": 0.2,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.03649205414949971,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.03649205414949971
+      },
+      {
+        "dataset": "wildguardtest",
+        "review_budget": 0.5,
+        "best_policy": "Q8b+own",
+        "best_residual": 0.012948793407886992,
+        "best_single_policy": "Q8b+own",
+        "best_single_residual": 0.012948793407886992
+      },
+      {
+        "dataset": "openai_moderation",
+        "review_budget": 0.01,
+        "best_policy": "L8b+panel",
+        "best_residual": 0.12612612612612611,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.12672672672672672
+      },
+      {
+        "dataset": "openai_moderation",
+        "review_budget": 0.02,
+        "best_policy": "L8b+own",
+        "best_residual": 0.12132132132132133,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.12132132132132133
+      },
+      {
+        "dataset": "openai_moderation",
+        "review_budget": 0.05,
+        "best_policy": "L8b+own",
+        "best_residual": 0.10810810810810811,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.10810810810810811
+      },
+      {
+        "dataset": "openai_moderation",
+        "review_budget": 0.1,
+        "best_policy": "L8b+own",
+        "best_residual": 0.08528528528528528,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.08528528528528528
+      },
+      {
+        "dataset": "openai_moderation",
+        "review_budget": 0.2,
+        "best_policy": "L8b+own",
+        "best_residual": 0.06486486486486487,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.06486486486486487
+      },
+      {
+        "dataset": "openai_moderation",
+        "review_budget": 0.5,
+        "best_policy": "L8b+own",
+        "best_residual": 0.01921921921921922,
+        "best_single_policy": "L8b+own",
+        "best_single_residual": 0.01921921921921922
+      }
+    ]
   }
 }

@@ -50,7 +50,7 @@ results/
   tables/          generated tables, gates.json, claims_to_evidence.csv
   paper_figures/   the six figures in the paper
 docs/
-  paper_draft.md        the paper
+  paper_draft.md        the paper (build the PDF: python scripts/build_paper_pdf.py)
   preregistration.md    hypotheses and thresholds, fixed before data
   study_protocol.md     the design in plain language
   findings.md           where every number comes from

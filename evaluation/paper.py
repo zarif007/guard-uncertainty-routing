@@ -190,6 +190,34 @@ def variant_usability(n_variants=6, seed=42, n_probe=200):
     return {"by_dataset": rows, "spearman_length_vs_variants": rho}
 
 
+def per_dataset(w, cost, budgets=(0.01, 0.02, 0.05, 0.10, 0.20, 0.50)):
+    panel_cost = sum(cost[m] for m in GUARDS)
+    panel = agreement(w, GUARDS)
+    guards, winners = [], []
+    for name in DATASETS:
+        d = w[w["dataset"] == name]
+        if d.empty:
+            continue
+        n = len(d)
+        guards.append({"dataset": name, "n": int(n),
+                       "harmful_rate": float((d["ground_truth"] == "unsafe").mean()),
+                       **{f"error_{SHORT[m]}": float(d[f"wrong_{SHORT[m]}"].mean()) for m in GUARDS}})
+        for b in budgets:
+            policies = []
+            for m in GUARDS:
+                s = SHORT[m]
+                errors = d[f"wrong_{s}"].to_numpy()
+                for signal, conf, c in (("own", d[f"conf_{s}"], cost[m]), ("panel", panel[d.index], panel_cost)):
+                    residual = (errors.sum() - errors_caught(errors, conf.to_numpy(), b)) / n
+                    policies.append((float(residual), float(c), f"{s}+{signal}"))
+            best = min(policies)
+            best_single = min(p for p in policies if p[2].endswith("+own"))
+            winners.append({"dataset": name, "review_budget": b, "best_policy": best[2],
+                            "best_residual": best[0], "best_single_policy": best_single[2],
+                            "best_single_residual": best_single[0]})
+    return {"guards": guards, "winners": winners}
+
+
 def band_test(w, seeds=20):
     n = len(w)
     rows = []
@@ -257,6 +285,39 @@ def fig_budget_crossover(allocation, path):
     ax.set_title("The best policy changes with the review budget")
     ax.legend(fontsize=6.5, frameon=False, loc="upper right")
     fig.tight_layout()
+    fig.savefig(path)
+    plt.close(fig)
+
+
+def fig_frontier(allocation, path, budgets=(0.01, 0.05, 0.10, 0.20)):
+    from matplotlib.lines import Line2D
+
+    signals = {NATIVE: ("o", "own confidence"), MODEL_AGREE: ("s", "3-guard panel")}
+    fig, axes = plt.subplots(1, len(budgets), figsize=(8.0, 2.6))
+    for ax, budget in zip(axes, budgets):
+        sub = allocation[np.isclose(allocation["human_budget"], budget)
+                         & allocation["signal"].isin(signals)
+                         & allocation["model"].isin(GUARDS)]
+        for _, r in sub.iterrows():
+            ax.plot(r["compute_per_decision"], r["residual_error_rate"], signals[r["signal"]][0],
+                    ms=6, color=COLORS[r["model"]])
+        pts = sub.sort_values(["compute_per_decision", "residual_error_rate"])
+        best, frontier = np.inf, []
+        for _, r in pts.iterrows():
+            if r["residual_error_rate"] < best:
+                best = r["residual_error_rate"]
+                frontier.append((r["compute_per_decision"], best))
+        fx, fy = zip(*frontier)
+        ax.plot(fx, fy, ls="--", color="black", lw=0.8, zorder=0)
+        ax.set_title(f"{budget * 100:.0f}% review", loc="center")
+        ax.set_xlim(0, 0.9)
+        ax.set_xlabel("Compute per decision (s)")
+    axes[0].set_ylabel("Residual risk")
+    handles = [Line2D([], [], ls="", marker="o", color=COLORS[m], label=NAMES[m]) for m in GUARDS]
+    handles += [Line2D([], [], ls="", marker=mk, color="#444444", label=label) for mk, label in signals.values()]
+    handles += [Line2D([], [], ls="--", color="black", lw=0.8, label="frontier")]
+    fig.legend(handles=handles, loc="lower center", ncol=6, fontsize=6.5, frameon=False)
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
     fig.savefig(path)
     plt.close(fig)
 
@@ -405,6 +466,7 @@ def main():
         "unanimous_failure": unanimous(w),
         "perturbation_usability": variant_usability(),
         "band_test": band_test(w),
+        "per_dataset": per_dataset(w, cost),
     }
     path = os.path.join(args.tables_dir, "exploratory.json")
     with open(path, "w") as f:
@@ -417,13 +479,14 @@ def main():
         gates = json.load(f)
 
     fig_budget_crossover(allocation, os.path.join(args.figures_dir, "fig1_budget_crossover.png"))
+    fig_frontier(allocation, os.path.join(args.figures_dir, "fig7_oversight_frontier.png"))
     fig_risk_coverage(df, os.path.join(args.figures_dir, "fig2_risk_coverage.png"))
     fig_agreement_forest(gates, os.path.join(args.figures_dir, "fig3_agreement_forest.png"))
     fig_identification_gap(out["cascade"], os.path.join(args.figures_dir, "fig4_identification_gap.png"))
     fig_length_axis(out["unanimous_failure"], out["perturbation_usability"],
                     os.path.join(args.figures_dir, "fig5_length_axis.png"))
     fig_auroc_vs_error(summary, os.path.join(args.figures_dir, "fig6_auroc_vs_error.png"))
-    print(f"  wrote 6 figures to {args.figures_dir}")
+    print(f"  wrote 7 figures to {args.figures_dir}")
 
 
 if __name__ == "__main__":

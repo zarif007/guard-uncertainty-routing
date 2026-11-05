@@ -253,8 +253,9 @@ ordering unless it saturates. It did not saturate anywhere:
 
 Identical to seven decimal places. The documented float64 saturation at margin
 ~37 never occurred: `margin_abs_median` is 4.0-5.8 and `frac_pinned` is
-0.12-0.37 -- well short of the 99.8% polarization an industry benchmark
-reports. Consistent with Safety-Flag finding dedicated guards well calibrated.
+0.12-0.37, far from the near-total polarization sometimes assumed for guards.
+(An industry benchmark was cited for a 99.8% figure; on checking, the page
+does not contain it, and the citation was dropped on 2026-10-31.)
 
 **Reportable as:** the motivating premise for behavioural signals -- that guard
 scores are degenerate -- does not hold for these guards. It should be measured
@@ -556,3 +557,21 @@ guard size, cross-model checking and human review on one frontier.*
 **The rule still governs:** never write a claim `claims_to_evidence.csv` has
 not marked `LICENSED` -- and, as A1 demonstrates, check that the evidence
 behind a licensed claim says what its label says.
+
+---
+
+## 12. Per dataset, and the frontier (exploratory, added 2026-10-31)
+
+`evaluation/paper.py` writes `per_dataset` into `exploratory.json` and draws
+the oversight frontier at 1%, 5%, 10% and 20% review
+(`fig7_oversight_frontier.png`).
+
+The pooled answer does not hold uniformly. Qwen3Guard-Gen-8B has the lowest
+error on xstest, harmbench and wildguardtest; Llama-Guard-3-8B wins the pooled
+comparison mainly through openai_moderation (0.130 against 0.279), with
+toxicchat nearly tied (0.077 against 0.078). Within datasets, the best policy
+is a single guard on its own confidence in 22 of 30 (dataset, budget) cells
+and the three-guard panel in 8. On toxicchat, the only set with a realistic
+harmful rate, the panel wins at 2%, 5%, 10% and 20% review, by 2-23% relative.
+The 1B never has the lowest risk outright. The paper reports all of this in
+§5.1, §5.6 and Appendix A.

@@ -216,10 +216,10 @@ rather than "this case is hard." Usable, but interpret carefully.
 
 Written down in advance so they are findings rather than surprises.
 
-**Perturbation instability may add nothing.** Existing work (arXiv 2402.13006)
-found that examples which flip under perturbation already have higher baseline
-uncertainty. If instability is just a noisy restatement of a small margin, it
-costs 10× the compute and buys nothing. Our hypothesis is that this breaks
+**Perturbation instability may add nothing.** Examples that flip under
+perturbation may simply be the ones with a small margin already. If
+instability is just a noisy restatement of a small margin, it costs 10× the
+compute and buys nothing. Our hypothesis is that this breaks
 down when native confidence is degenerate — but that is a hypothesis, not a
 given.
 
@@ -227,9 +227,9 @@ given.
 with the paraphrase actually being different. The perturbations have to be
 checked as meaning-preserving, or we are measuring bad paraphrases.
 
-**The polarization claim must be tested, not assumed.** An industry benchmark
-reports that some guards pin 99.8% of their scores at 0 or 1. That is
-motivation, not evidence about *our* models. Safety-Flag in fact found
+**The polarization claim must be tested, not assumed.** A common worry is that
+guards pin almost all their scores at 0 or 1. That is motivation, not evidence
+about *our* models. Safety-Flag in fact found
 dedicated guards to be *better* calibrated than general-purpose models. We
 measure this on our own models first and report what we find.
 
